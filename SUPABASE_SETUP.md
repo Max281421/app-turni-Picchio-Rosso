@@ -59,8 +59,8 @@ Per fare in modo che i dipendenti possano registrarsi ed accedere subito senza d
 - **Target Vercel**: `Production`
 
 ### 🧪 5.2 Credenziali Beta (Ramo `beta`)
-- **Project URL**: `[Inserisci URL Progetto Beta]`
-- **Publishable Key**: `[Inserisci Key Progetto Beta]`
-- **Database Password**: `[Inserisci Password DB Beta]`
+- **Project URL**: `https://aexlzsgmupwbyqwoyvoh.supabase.co`
+- **Publishable Key**: `sb_publishable_RtEics-3GqLSH7KaV4oaqg_...`
+- **Database Password**: `[Password impostata per il DB Beta]`
 - **Target Vercel**: `Preview`
 
