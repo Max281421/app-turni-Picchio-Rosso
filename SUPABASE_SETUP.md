@@ -50,11 +50,17 @@ Per fare in modo che i dipendenti possano registrarsi ed accedere subito senza d
 
 ---
 
-## 5. Collegare l'App
+## 5. Ambienti & Credenziali (Produzione & Beta)
 
-1. Apri l'app nel browser all'indirizzo [http://localhost:3000/](http://localhost:3000/).
-2. Clicca sul pulsante **Config** (o **Configura Supabase Ora**).
-3. Incolla il **Project URL** nel primo campo.
-4. Incolla la **Publishable key** (o la **anon key**) nel secondo campo.
-5. Clicca su **Salva e Connetti**.
+### 🟢 5.1 Credenziali Produzione (Ramo `main`)
+- **Project URL**: `https://anipnkftlyemgpulycqo.supabase.co`
+- **Publishable Key**: `sb_publishable_sOd-X1rlfMbyBwJ2tVdbUw_Q3tZf-oi`
+- **Database Password**: `[Inserisci la password del DB Produzione]`
+- **Target Vercel**: `Production`
+
+### 🧪 5.2 Credenziali Beta (Ramo `beta`)
+- **Project URL**: `[Inserisci URL Progetto Beta]`
+- **Publishable Key**: `[Inserisci Key Progetto Beta]`
+- **Database Password**: `[Inserisci Password DB Beta]`
+- **Target Vercel**: `Preview`
 
