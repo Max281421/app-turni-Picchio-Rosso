@@ -45,8 +45,10 @@ export default function Login({ onOpenSetup }) {
       let msg = err.message || 'Errore durante la procedura';
       if (msg.includes('Invalid login credentials')) {
         msg = 'Email o password non corrette.';
-      } else if (msg.includes('User already registered')) {
-        msg = 'Questa email risulta già registrata. Effettua l\'accesso.';
+      } else if (msg.includes('User already registered') || msg.includes('already exists')) {
+        msg = 'Questa email risulta già registrata. Seleziona la scheda "Accedi" in alto ed entra direttamente!';
+      } else if (msg.includes('rate limit') || msg.includes('rate_limit')) {
+        msg = 'L\'account risulta già registrato su Supabase! Clicca sulla scheda "Accedi" in alto ed entra con la password Test123456!';
       }
       setErrorMsg(msg);
     } finally {
