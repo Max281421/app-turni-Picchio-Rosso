@@ -71,7 +71,7 @@ export function AuthProvider({ children }) {
       if (data) {
         setEmployee(data);
       } else {
-        // Se la riga non esiste ancora in employees, usa i metadata di autenticazione
+        // Se la riga non esiste ancora in employees, crea il profilo con .insert()
         const { data: userData } = await supabase.auth.getUser();
         const userObj = userData?.user;
         const email = userObj?.email || 'utente';
@@ -81,15 +81,26 @@ export function AuthProvider({ children }) {
 
         const { data: newEmp, error: createErr } = await supabase
           .from('employees')
-          .upsert([{ id: authUserId, auth_user_id: authUserId, nome: targetName, ruolo: targetRole }], { onConflict: 'auth_user_id' })
+          .insert([{ auth_user_id: authUserId, nome: targetName, ruolo: targetRole }])
           .select()
           .maybeSingle();
 
         if (newEmp) {
           setEmployee(newEmp);
         } else {
-          console.warn('Fallback employee profile initialized:', createErr);
-          setEmployee({ id: authUserId, auth_user_id: authUserId, nome: targetName, ruolo: targetRole });
+          // Se la insert ha dato errore perché la riga esisteva già, riprova con la select
+          const { data: retryEmp } = await supabase
+            .from('employees')
+            .select('*')
+            .eq('auth_user_id', authUserId)
+            .maybeSingle();
+
+          if (retryEmp) {
+            setEmployee(retryEmp);
+          } else {
+            console.warn('Fallback employee profile initialized:', createErr);
+            setEmployee({ id: authUserId, auth_user_id: authUserId, nome: targetName, ruolo: targetRole });
+          }
         }
       }
     } catch (err) {

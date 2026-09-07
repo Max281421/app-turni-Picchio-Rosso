@@ -91,9 +91,21 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       }
 
       let list = empData || [];
-      // Se l'utente attivo non compare nella lista (es. per latenze RLS), aggiungilo
-      if (activeEmployee && !list.some(e => e.id === activeEmployee.id)) {
-        list = [activeEmployee, ...list];
+      
+      // Auto-healing: se l'utente attivo non ha ancora un record salvato nella tabella employees di Supabase, crealo subito
+      if (activeEmployee && (!list || !list.some(e => e.auth_user_id === activeEmployee.auth_user_id || e.id === activeEmployee.id))) {
+        const authId = activeEmployee.auth_user_id || activeEmployee.id;
+        const { data: insertedEmp } = await supabase
+          .from('employees')
+          .insert([{ auth_user_id: authId, nome: activeEmployee.nome || 'Admin', ruolo: activeEmployee.ruolo || 'admin' }])
+          .select()
+          .maybeSingle();
+
+        if (insertedEmp) {
+          list = [insertedEmp, ...list.filter(e => e.id !== insertedEmp.id)];
+        } else {
+          list = [activeEmployee, ...list];
+        }
       }
 
       setEmployeesList(list);
