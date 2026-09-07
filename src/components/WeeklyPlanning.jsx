@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getSupabaseClient } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { sharePlanningToWhatsApp } from '../lib/whatsappExport';
-import { Calendar, Sun, Moon, Send, CheckCircle2, ChevronLeft, ChevronRight, UserCheck, Clock } from 'lucide-react';
+import { Calendar, Sun, Moon, Send, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Helper per ottenere il Lunedì della settimana a partire da una data qualsiasi
 function getMonday(d) {
@@ -25,8 +25,9 @@ function formatDateLocal(date) {
 const DAY_NAMES = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 
 export default function WeeklyPlanning({ mode = 'planning', employeesList: propEmployeesList, refreshMasterShifts }) {
-  const { currentEmployee, employee, isAdmin } = useAuth();
+  const { currentEmployee, employee, isAdmin: contextIsAdmin } = useAuth();
   const activeEmployee = currentEmployee || employee;
+  const isAdmin = contextIsAdmin !== undefined ? contextIsAdmin : (activeEmployee?.ruolo === 'admin');
   const isPersonalMode = mode === 'availabilities';
   const [employeesList, setEmployeesList] = useState(propEmployeesList || []);
   
@@ -34,8 +35,8 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
   const [currentMonday, setCurrentMonday] = useState(() => {
     const today = new Date();
     const monday = getMonday(today);
-    // Se è venerdì, sabato o domenica, imposta di default la settimana successiva per le disponibilità
-    if (today.getDay() === 5 || today.getDay() === 6 || today.getDay() === 0) {
+    // Se è venerdì, sabato o domenica, imposta di default la settimana successiva per le disponibilità personali
+    if (mode === 'availabilities' && (today.getDay() === 5 || today.getDay() === 6 || today.getDay() === 0)) {
       monday.setDate(monday.getDate() + 7);
     }
     return monday;
@@ -74,6 +75,28 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
     fetchWeekData();
   }, [currentMonday, mode]);
 
+  const isAvailable = (empOrId, dateStr, turno) => {
+    if (!empOrId) return false;
+    if (typeof empOrId === 'object') {
+      return !!(
+        (empOrId.id && availabilitiesMap[`${empOrId.id}_${dateStr}_${turno}`]) ||
+        (empOrId.auth_user_id && availabilitiesMap[`${empOrId.auth_user_id}_${dateStr}_${turno}`])
+      );
+    }
+    return !!availabilitiesMap[`${empOrId}_${dateStr}_${turno}`];
+  };
+
+  const isAssigned = (empOrId, dateStr, turno) => {
+    if (!empOrId) return false;
+    if (typeof empOrId === 'object') {
+      return !!(
+        (empOrId.id && assignedShiftsMap[`${empOrId.id}_${dateStr}_${turno}`]) ||
+        (empOrId.auth_user_id && assignedShiftsMap[`${empOrId.auth_user_id}_${dateStr}_${turno}`])
+      );
+    }
+    return !!assignedShiftsMap[`${empOrId}_${dateStr}_${turno}`];
+  };
+
   const fetchWeekData = async () => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
@@ -110,6 +133,10 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
 
       setEmployeesList(list);
 
+      // Map di supporto per associare id ed auth_user_id di ogni dipendente
+      const empIdToAuthId = new Map(list.map(e => [e.id, e.auth_user_id]));
+      const authIdToEmpId = new Map(list.map(e => [e.auth_user_id, e.id]));
+
       // 1. Carica disponibilità per l'intervallo di date
       const { data: availData, error: availErr } = await supabase
         .from('availabilities')
@@ -126,6 +153,10 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         availData.forEach(item => {
           if (item.is_available) {
             aMap[`${item.employee_id}_${item.data}_${item.turno}`] = true;
+            const altId1 = empIdToAuthId.get(item.employee_id);
+            if (altId1) aMap[`${altId1}_${item.data}_${item.turno}`] = true;
+            const altId2 = authIdToEmpId.get(item.employee_id);
+            if (altId2) aMap[`${altId2}_${item.data}_${item.turno}`] = true;
           }
         });
       }
@@ -146,6 +177,10 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       if (shiftsData) {
         shiftsData.forEach(item => {
           sMap[`${item.employee_id}_${item.data}_${item.turno}`] = item.id;
+          const altId1 = empIdToAuthId.get(item.employee_id);
+          if (altId1) sMap[`${altId1}_${item.data}_${item.turno}`] = item.id;
+          const altId2 = authIdToEmpId.get(item.employee_id);
+          if (altId2) sMap[`${altId2}_${item.data}_${item.turno}`] = item.id;
         });
       }
       setAssignedShiftsMap(sMap);
@@ -178,38 +213,44 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
     if (!supabase || !empId) return;
 
     let targetEmpId = empId;
+    let authId = activeEmployee?.auth_user_id || activeEmployee?.id || empId;
 
-    // Assicuriamoci che targetEmpId corrisponda al record id reale presente in public.employees
-    if (activeEmployee) {
-      const { data: empRecord } = await supabase
+    // Cerca l'employee record reale in Supabase
+    const { data: empRecord } = await supabase
+      .from('employees')
+      .select('id, auth_user_id')
+      .or(`id.eq.${empId},auth_user_id.eq.${authId}`)
+      .maybeSingle();
+
+    if (empRecord?.id) {
+      targetEmpId = empRecord.id;
+      authId = empRecord.auth_user_id || authId;
+    } else if (activeEmployee) {
+      const { data: createdEmp } = await supabase
         .from('employees')
-        .select('id')
-        .eq('auth_user_id', activeEmployee.auth_user_id || activeEmployee.id)
+        .insert([{ auth_user_id: authId, nome: activeEmployee.nome || 'Utente', ruolo: activeEmployee.ruolo || 'dipendente' }])
+        .select('id, auth_user_id')
         .maybeSingle();
 
-      if (empRecord?.id) {
-        targetEmpId = empRecord.id;
-      } else {
-        // Se non esiste ancora in employees, creiamolo al volo per garantire il Foreign Key
-        const { data: createdEmp } = await supabase
-          .from('employees')
-          .insert([{ auth_user_id: activeEmployee.auth_user_id || activeEmployee.id, nome: activeEmployee.nome || 'Admin', ruolo: activeEmployee.ruolo || 'admin' }])
-          .select('id')
-          .maybeSingle();
-        if (createdEmp?.id) {
-          targetEmpId = createdEmp.id;
-        }
+      if (createdEmp?.id) {
+        targetEmpId = createdEmp.id;
+        authId = createdEmp.auth_user_id || authId;
       }
     }
 
-    const key = `${targetEmpId}_${dateStr}_${turno}`;
-    const currentValue = !!availabilitiesMap[key];
+    const key1 = `${targetEmpId}_${dateStr}_${turno}`;
+    const key2 = `${authId}_${dateStr}_${turno}`;
+    const key3 = `${empId}_${dateStr}_${turno}`;
+
+    const currentValue = isAvailable(activeEmployee, dateStr, turno);
     const newValue = !currentValue;
 
-    // Aggiornamento ottimistico locale UI
+    // Aggiorna lo stato locale per TUTTE le chiavi possibili
     setAvailabilitiesMap(prev => ({
       ...prev,
-      [key]: newValue,
+      [key1]: newValue,
+      [key2]: newValue,
+      [key3]: newValue,
     }));
 
     try {
@@ -231,22 +272,28 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       }
     } catch (err) {
       console.error('Errore salvataggio disponibilità:', err);
-      setAvailabilitiesMap(prev => ({
-        ...prev,
-        [key]: currentValue,
-      }));
     }
   };
 
   // Toggle Assegnazione Turno (Lato Admin)
-  const toggleShiftAssignment = (empId, dateStr, turno) => {
-    const key = `${empId}_${dateStr}_${turno}`;
+  const toggleShiftAssignment = (emp, dateStr, turno) => {
+    const empId = emp.id;
+    const authId = emp.auth_user_id;
+
+    const key1 = `${empId}_${dateStr}_${turno}`;
+    const key2 = authId ? `${authId}_${dateStr}_${turno}` : null;
+
+    const currentValue = isAssigned(emp, dateStr, turno);
+    const newValue = !currentValue;
+
     setAssignedShiftsMap(prev => {
       const copy = { ...prev };
-      if (copy[key]) {
-        delete copy[key];
+      if (newValue) {
+        copy[key1] = true;
+        if (key2) copy[key2] = true;
       } else {
-        copy[key] = true;
+        delete copy[key1];
+        if (key2) delete copy[key2];
       }
       return copy;
     });
@@ -267,7 +314,10 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
 
       if (fetchErr) throw fetchErr;
 
-      const existingMap = new Map(existingShifts.map(s => [`${s.employee_id}_${s.data}_${s.turno}`, s.id]));
+      const existingMap = new Map();
+      existingShifts?.forEach(s => {
+        existingMap.set(`${s.employee_id}_${s.data}_${s.turno}`, s.id);
+      });
 
       const toInsert = [];
       const toDeleteIds = [];
@@ -275,17 +325,18 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       for (const day of weekDays) {
         for (const emp of employeesList) {
           for (const turno of ['pranzo', 'cena']) {
-            const key = `${emp.id}_${day.dateStr}_${turno}`;
-            const isAssigned = !!assignedShiftsMap[key];
-            const existingId = existingMap.get(key);
+            if (day.isSunday && turno === 'pranzo') continue;
 
-            if (isAssigned && !existingId) {
+            const isAssignedShift = isAssigned(emp, day.dateStr, turno);
+            const existingId = existingMap.get(`${emp.id}_${day.dateStr}_${turno}`) || (emp.auth_user_id ? existingMap.get(`${emp.auth_user_id}_${day.dateStr}_${turno}`) : null);
+
+            if (isAssignedShift && !existingId) {
               toInsert.push({
                 employee_id: emp.id,
                 data: day.dateStr,
                 turno: turno,
               });
-            } else if (!isAssigned && existingId) {
+            } else if (!isAssignedShift && existingId) {
               toDeleteIds.push(existingId);
             }
           }
@@ -319,8 +370,8 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       const assignedShifts = [];
       for (const emp of employeesList) {
         for (const turno of ['pranzo', 'cena']) {
-          const key = `${emp.id}_${day.dateStr}_${turno}`;
-          if (assignedShiftsMap[key]) {
+          if (day.isSunday && turno === 'pranzo') continue;
+          if (isAssigned(emp, day.dateStr, turno)) {
             assignedShifts.push({ employee_id: emp.id, turno });
           }
         }
@@ -415,7 +466,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          justify: 'space-between',
+          justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '12px',
           padding: '14px 18px',
@@ -456,7 +507,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
           Caricamento disponibilità in corso...
         </div>
       ) : (
-        /* GRIGLIA IBRIDA DELLE 7 GIORNATE (LUN - DOM) */
+        /* GRIGLIA IBRIDA DELLE GIORNATE */
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
@@ -497,13 +548,13 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                       style={{
                         padding: '8px 10px',
                         borderRadius: '8px',
-                        border: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`]
+                        border: isAvailable(activeEmployee, day.dateStr, 'pranzo')
                           ? '1px solid rgba(245, 158, 11, 0.5)'
                           : '1px solid rgba(255, 255, 255, 0.08)',
-                        background: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`]
+                        background: isAvailable(activeEmployee, day.dateStr, 'pranzo')
                           ? 'rgba(245, 158, 11, 0.2)'
                           : 'rgba(30, 41, 59, 0.6)',
-                        color: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`]
+                        color: isAvailable(activeEmployee, day.dateStr, 'pranzo')
                           ? '#fbbf24'
                           : '#94a3b8',
                         fontWeight: 600,
@@ -516,10 +567,10 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                       }}
                     >
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Sun size={13} color={availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`] ? '#fbbf24' : '#94a3b8'} />
+                        <Sun size={13} color={isAvailable(activeEmployee, day.dateStr, 'pranzo') ? '#fbbf24' : '#94a3b8'} />
                         Pranzo
                       </span>
-                      <span>{availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`] ? '✅' : '❌'}</span>
+                      <span>{isAvailable(activeEmployee, day.dateStr, 'pranzo') ? '✅' : '❌'}</span>
                     </button>
                   )}
 
@@ -530,13 +581,13 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                     style={{
                       padding: '8px 10px',
                       borderRadius: '8px',
-                      border: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_cena`]
+                      border: isAvailable(activeEmployee, day.dateStr, 'cena')
                         ? '1px solid rgba(99, 102, 241, 0.5)'
                         : '1px solid rgba(255, 255, 255, 0.08)',
-                      background: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_cena`]
+                      background: isAvailable(activeEmployee, day.dateStr, 'cena')
                         ? 'rgba(99, 102, 241, 0.2)'
                         : 'rgba(30, 41, 59, 0.6)',
-                      color: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_cena`]
+                      color: isAvailable(activeEmployee, day.dateStr, 'cena')
                         ? '#a5b4fc'
                         : '#94a3b8',
                       fontWeight: 600,
@@ -549,16 +600,16 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                     }}
                   >
                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Moon size={13} color={availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_cena`] ? '#a5b4fc' : '#94a3b8'} />
+                      <Moon size={13} color={isAvailable(activeEmployee, day.dateStr, 'cena') ? '#a5b4fc' : '#94a3b8'} />
                       Cena
                     </span>
-                    <span>{availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_cena`] ? '✅' : '❌'}</span>
+                    <span>{isAvailable(activeEmployee, day.dateStr, 'cena') ? '✅' : '❌'}</span>
                   </button>
                 </div>
               )}
 
               {/* LATO ADMIN: Selettore Dipendenti per Pranzo e Cena */}
-              {!isPersonalMode && isAdmin && (
+              {!isPersonalMode && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {['pranzo', 'cena'].filter(t => !(day.isSunday && t === 'pranzo')).map(turno => (
                     <div key={turno} style={{
@@ -574,35 +625,36 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         {employeesList.map(emp => {
-                          const isAvail = !!availabilitiesMap[`${emp.id}_${day.dateStr}_${turno}`];
-                          const isAssigned = !!assignedShiftsMap[`${emp.id}_${day.dateStr}_${turno}`];
+                          const empAvail = isAvailable(emp, day.dateStr, turno);
+                          const empAssigned = isAssigned(emp, day.dateStr, turno);
 
                           return (
                             <button
                               key={emp.id}
                               type="button"
-                              onClick={() => toggleShiftAssignment(emp.id, day.dateStr, turno)}
+                              onClick={() => isAdmin && toggleShiftAssignment(emp, day.dateStr, turno)}
+                              disabled={!isAdmin}
                               style={{
                                 width: '100%',
                                 textAlign: 'left',
                                 padding: '5px 8px',
                                 borderRadius: '6px',
                                 fontSize: '0.72rem',
-                                fontWeight: isAssigned ? 700 : 500,
-                                border: isAssigned
+                                fontWeight: empAssigned ? 700 : 500,
+                                border: empAssigned
                                   ? '1px solid rgba(16, 185, 129, 0.8)'
                                   : '1px solid transparent',
-                                background: isAssigned
+                                background: empAssigned
                                   ? 'rgba(16, 185, 129, 0.25)'
-                                  : isAvail
+                                  : empAvail
                                   ? 'rgba(51, 65, 85, 0.7)'
                                   : 'rgba(15, 23, 42, 0.4)',
-                                color: isAssigned
+                                color: empAssigned
                                   ? '#34d399'
-                                  : isAvail
+                                  : empAvail
                                   ? '#f8fafc'
                                   : '#64748b',
-                                cursor: 'pointer',
+                                cursor: isAdmin ? 'pointer' : 'default',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
@@ -613,7 +665,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                                 {emp.nome}
                               </span>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                {isAvail && (
+                                {empAvail && (
                                   <span
                                     style={{
                                       width: '6px',
@@ -625,7 +677,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                                     title="Disponibile"
                                   />
                                 )}
-                                {isAssigned && <span>✓</span>}
+                                {empAssigned && <span>✓</span>}
                               </div>
                             </button>
                           );

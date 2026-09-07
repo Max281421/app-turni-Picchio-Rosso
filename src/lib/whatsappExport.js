@@ -29,7 +29,12 @@ export function getShortFirstName(fullName) {
  * @returns {string} Il testo formattato pronto per l'invio
  */
 export function generateWhatsAppPlanningText(weekDaysArray, employeesList) {
-  const employeeMap = new Map(employeesList.map(e => [e.id, getShortFirstName(e.nome)]));
+  const employeeMap = new Map();
+  employeesList.forEach(e => {
+    const shortName = getShortFirstName(e.nome);
+    if (e.id) employeeMap.set(e.id, shortName);
+    if (e.auth_user_id) employeeMap.set(e.auth_user_id, shortName);
+  });
 
   const lines = ['🍕 *PLANNING SETTIMANALE* 🍕', ''];
 

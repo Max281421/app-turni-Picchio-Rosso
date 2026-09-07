@@ -319,6 +319,7 @@ export function AuthProvider({ children }) {
       value={{
         user,
         employee,
+        isAdmin: employee?.ruolo === 'admin',
         loading,
         isConfigured,
         login,
