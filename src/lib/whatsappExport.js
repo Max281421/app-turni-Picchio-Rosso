@@ -46,8 +46,9 @@ export function generateWhatsAppPlanningText(weekDaysArray, employeesList) {
     return dayA - dayB;
   });
 
-  // Controlla se c'è almeno un turno di cena assegnato ufficialmente nell'intera settimana
-  const hasAnyAssigned = reorderedDays.some(
+  // 1. Considera ESCLUSIVAMENTE il turno di CENA per l'esportazione WhatsApp
+  // Controlla se l'Admin ha assegnato ufficialmente almeno un turno di CENA nella settimana
+  const hasAnyAssignedCena = reorderedDays.some(
     dayObj => dayObj.assignedShifts && dayObj.assignedShifts.some(s => s.turno === 'cena')
   );
 
@@ -59,16 +60,15 @@ export function generateWhatsAppPlanningText(weekDaysArray, employeesList) {
 
     const dayCode = DAY_NAMES_SHORT[dayOfWeek];
 
-    // Se c'è almeno un turno di cena assegnato nell'intera settimana, usa ESCLUSIVAMENTE i turni assegnati.
-    // Se l'admin non ha ancora assegnato alcun turno di cena nella settimana, fa da fallback sulle disponibilità.
-    const targetShifts = hasAnyAssigned
-      ? (dayObj.assignedShifts || [])
-      : (dayObj.availableShifts || []);
+    // Filtra mantenendo SOLO i turni di CENA (i pranzi vengono ignorati nel messaggio)
+    const assignedCena = (dayObj.assignedShifts || []).filter(s => s.turno === 'cena');
+    const availableCena = (dayObj.availableShifts || []).filter(s => s.turno === 'cena');
 
-    // Raccogliamo solo gli employee_id assegnati/disponibili per il turno di CENA (i pranzi figurano solo sull'app)
-    const validShifts = targetShifts.filter(s => s.turno === 'cena');
+    // Se c'è almeno un turno di CENA assegnato nell'intera settimana, usa ESCLUSIVAMENTE le cene assegnate.
+    // Se l'admin non ha ancora assegnato alcuna cena nella settimana, usa le cene disponibili.
+    const targetCenaShifts = hasAnyAssignedCena ? assignedCena : availableCena;
 
-    const targetIds = new Set(validShifts.map(s => s.employee_id));
+    const targetIds = new Set(targetCenaShifts.map(s => s.employee_id));
 
     if (targetIds.size > 0) {
       const names = Array.from(targetIds)
