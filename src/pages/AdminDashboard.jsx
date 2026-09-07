@@ -287,7 +287,7 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#f8fafc' }}>
-                        {emp.nome || 'Senza nome'}
+                        {emp.nome || 'Senza nome'} {emp.alias ? `(${emp.alias})` : ''}
                       </h4>
                       <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                         {emp.ruolo === 'admin' ? 'Amministratore' : 'Dipendente'}

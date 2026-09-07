@@ -259,6 +259,37 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Funzione per aggiornare l'alias/soprannome per WhatsApp del dipendente
+  const updateEmployeeAlias = async (employeeId, newAlias) => {
+    const supabase = getSupabaseClient();
+    if (!supabase || !employeeId) return;
+
+    try {
+      const trimmedAlias = (newAlias || '').trim();
+      const isSelf = employee?.id === employeeId || employee?.auth_user_id === user?.id;
+
+      const { data, error } = await supabase
+        .from('employees')
+        .update({ alias: trimmedAlias })
+        .eq('id', employeeId)
+        .select()
+        .maybeSingle();
+
+      if (error) {
+        console.warn('DB update alias warning:', error);
+      }
+
+      if (isSelf) {
+        setEmployee((prev) => prev ? { ...prev, alias: trimmedAlias } : null);
+      }
+
+      return data || { alias: trimmedAlias };
+    } catch (err) {
+      console.error('Error updating alias:', err);
+      throw err;
+    }
+  };
+
   // Funzione per eliminare l'account o un dipendente
   const deleteAccount = async (targetEmployeeId) => {
     const supabase = getSupabaseClient();
@@ -327,6 +358,7 @@ export function AuthProvider({ children }) {
         logout,
         updateEmployeeRole,
         updateEmployeeName,
+        updateEmployeeAlias,
         deleteAccount,
         refreshProfile: () => user && fetchEmployeeProfile(user.id),
         checkConfigAndInit

@@ -3,17 +3,20 @@ import { useAuth } from '../context/AuthContext';
 import { Shield, User, X, Trash2, ArrowRightLeft, Check, AlertTriangle, UserCheck } from 'lucide-react';
 
 export default function ProfileModal({ isOpen, onClose }) {
-  const { user, employee, updateEmployeeRole, updateEmployeeName, deleteAccount } = useAuth();
+  const { user, employee, updateEmployeeRole, updateEmployeeName, updateEmployeeAlias, deleteAccount } = useAuth();
   const [loading, setLoading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingName, setEditingName] = useState(employee?.nome || '');
+  const [editingAlias, setEditingAlias] = useState(employee?.alias || '');
   const [nameSaved, setNameSaved] = useState(false);
+  const [aliasSaved, setAliasSaved] = useState(false);
 
   useEffect(() => {
-    if (employee?.nome) {
-      setEditingName(employee.nome);
+    if (employee) {
+      if (employee.nome) setEditingName(employee.nome);
+      setEditingAlias(employee.alias || '');
     }
-  }, [employee?.nome]);
+  }, [employee?.nome, employee?.alias]);
 
   if (!isOpen || !user) return null;
 
@@ -29,6 +32,21 @@ export default function ProfileModal({ isOpen, onClose }) {
     } catch (err) {
       console.error(err);
       alert('Errore durante l\'aggiornamento del nome.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveAlias = async () => {
+    if (!employee?.id) return;
+    setLoading(true);
+    try {
+      await updateEmployeeAlias(employee.id, editingAlias.trim());
+      setAliasSaved(true);
+      setTimeout(() => setAliasSaved(false), 2500);
+    } catch (err) {
+      console.error(err);
+      alert('Errore durante l\'aggiornamento dell\'alias.');
     } finally {
       setLoading(false);
     }
@@ -88,7 +106,7 @@ export default function ProfileModal({ isOpen, onClose }) {
         </div>
 
         {/* Edit Name & Surname Section */}
-        <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '20px' }}>
+        <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '16px' }}>
           <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: '8px' }}>
             Nome e Cognome
           </label>
@@ -110,6 +128,36 @@ export default function ProfileModal({ isOpen, onClose }) {
             >
               {nameSaved ? <Check size={16} /> : <UserCheck size={16} />}
               {nameSaved ? 'Salvato!' : 'Salva'}
+            </button>
+          </div>
+        </div>
+
+        {/* Edit Alias / Soprannome WhatsApp Section */}
+        <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '20px' }}>
+          <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#38bdf8', display: 'block', marginBottom: '4px' }}>
+            Alias / Soprannome WhatsApp
+          </label>
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '8px' }}>
+            Usato nel messaggio WhatsApp del planning (es. "ALLE", "GIGI", "ROBY")
+          </span>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              value={editingAlias}
+              onChange={(e) => setEditingAlias(e.target.value)}
+              placeholder="es. ALLE"
+              className="glass-input"
+              style={{ flex: 1, padding: '10px 14px', fontSize: '0.9rem' }}
+            />
+            <button
+              type="button"
+              onClick={handleSaveAlias}
+              disabled={loading}
+              className="btn-primary"
+              style={{ padding: '10px 14px', fontSize: '0.85rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              {aliasSaved ? <Check size={16} /> : <UserCheck size={16} />}
+              {aliasSaved ? 'Salvato!' : 'Salva'}
             </button>
           </div>
         </div>

@@ -37,6 +37,9 @@ ON public.planned_shifts FOR ALL
 USING (true)
 WITH CHECK (true);
 
+-- Aggiunta colonna alias/soprannome per i dipendenti (usato per WhatsApp)
+ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS alias TEXT;
+
 -- PERMESSI FONDAMENTALI PER SUPABASE POSTGREST API (Senza questi Postgres restituisce errore 42501 permission denied)
 GRANT ALL ON TABLE public.employees TO authenticated;
 GRANT ALL ON TABLE public.employees TO anon;

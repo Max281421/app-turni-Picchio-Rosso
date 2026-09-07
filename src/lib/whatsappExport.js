@@ -31,7 +31,7 @@ export function getShortFirstName(fullName) {
 export function generateWhatsAppPlanningText(weekDaysArray, employeesList) {
   const employeeMap = new Map();
   employeesList.forEach(e => {
-    const shortName = getShortFirstName(e.nome);
+    const shortName = (e.alias && e.alias.trim()) ? e.alias.trim().toUpperCase() : getShortFirstName(e.nome);
     if (e.id) employeeMap.set(e.id, shortName);
     if (e.auth_user_id) employeeMap.set(e.auth_user_id, shortName);
   });

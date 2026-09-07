@@ -807,7 +807,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                                     }}
                                   >
                                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                      {emp.nome}
+                                      {emp.alias ? `${emp.nome} (${emp.alias})` : emp.nome}
                                     </span>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                       {empAvail && (
@@ -946,7 +946,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                                   justify: 'space-between'
                                 }}>
                                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {emp.nome}
+                                    {emp.alias ? `${emp.nome} (${emp.alias})` : emp.nome}
                                   </span>
                                   <span>✓</span>
                                 </div>
