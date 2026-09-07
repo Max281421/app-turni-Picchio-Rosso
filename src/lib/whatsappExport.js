@@ -46,6 +46,9 @@ export function generateWhatsAppPlanningText(weekDaysArray, employeesList) {
     return dayA - dayB;
   });
 
+  // Controlla se c'è almeno un turno assegnato ufficialmente nell'intera settimana
+  const hasAnyAssigned = reorderedDays.some(dayObj => dayObj.assignedShifts && dayObj.assignedShifts.length > 0);
+
   for (const dayObj of reorderedDays) {
     const dayOfWeek = dayObj.date.getDay(); // 0 = DOM, 1 = LUN, 2 = MAR, etc.
     
@@ -54,9 +57,10 @@ export function generateWhatsAppPlanningText(weekDaysArray, employeesList) {
 
     const dayCode = DAY_NAMES_SHORT[dayOfWeek];
 
-    // Se ci sono turni assegnati usa quelli, altrimenti usa le disponibilità inserite
-    let targetShifts = dayObj.assignedShifts && dayObj.assignedShifts.length > 0
-      ? dayObj.assignedShifts
+    // Se c'è almeno un turno assegnato nell'intera settimana, usa ESCLUSIVAMENTE i turni assegnati.
+    // Se l'admin non ha ancora assegnato alcun turno nella settimana, fa da fallback sulle disponibilità.
+    const targetShifts = hasAnyAssigned
+      ? (dayObj.assignedShifts || [])
       : (dayObj.availableShifts || []);
 
     // Raccogliamo gli employee_id che lavorano (escludendo pranzo la domenica)
