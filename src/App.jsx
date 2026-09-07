@@ -95,10 +95,12 @@ function MainContent() {
       />
 
       <main style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 16px' }}>
-        {adminActiveTab === 'planning' ? (
-          <WeeklyPlanning />
-        ) : isAdmin ? (
-          adminActiveTab === 'all' ? <AdminDashboard /> : <EmployeeDashboard />
+        {adminActiveTab === 'availabilities' ? (
+          <WeeklyPlanning mode="availabilities" />
+        ) : adminActiveTab === 'planning' && isAdmin ? (
+          <WeeklyPlanning mode="planning" />
+        ) : adminActiveTab === 'all' && isAdmin ? (
+          <AdminDashboard />
         ) : (
           <EmployeeDashboard />
         )}

@@ -46,6 +46,8 @@ export default function Navbar({ onOpenSetup, adminActiveTab, setAdminActiveTab 
           {/* Integrated Tab Switcher */}
           {user && setAdminActiveTab && (
             <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '4px', borderRadius: '12px', display: 'flex', gap: '4px', border: '1px solid rgba(255, 255, 255, 0.1)', flexWrap: 'wrap' }}>
+              
+              {/* Tab 1 Personale: I Miei Turni */}
               <button
                 type="button"
                 onClick={() => setAdminActiveTab('my')}
@@ -68,15 +70,16 @@ export default function Navbar({ onOpenSetup, adminActiveTab, setAdminActiveTab 
                 I Miei Turni
               </button>
 
+              {/* Tab 2 Personale: Le Mie Disponibilità */}
               <button
                 type="button"
-                onClick={() => setAdminActiveTab('planning')}
+                onClick={() => setAdminActiveTab('availabilities')}
                 style={{
                   padding: '8px 12px',
                   borderRadius: '8px',
                   border: 'none',
-                  background: adminActiveTab === 'planning' ? 'linear-gradient(135deg, #38bdf8, #818cf8)' : 'transparent',
-                  color: adminActiveTab === 'planning' ? '#0f172a' : '#94a3b8',
+                  background: adminActiveTab === 'availabilities' ? 'linear-gradient(135deg, #38bdf8, #818cf8)' : 'transparent',
+                  color: adminActiveTab === 'availabilities' ? '#0f172a' : '#94a3b8',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
@@ -87,31 +90,58 @@ export default function Navbar({ onOpenSetup, adminActiveTab, setAdminActiveTab 
                 }}
               >
                 <span>📋</span>
-                {isAdmin ? 'Planning Settimanale' : 'Disponibilità'}
+                Le Mie Disponibilità
               </button>
 
+              {/* Tabs Globali Solo per Admin */}
               {isAdmin && (
-                <button
-                  type="button"
-                  onClick={() => setAdminActiveTab('all')}
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: adminActiveTab === 'all' ? 'linear-gradient(135deg, #38bdf8, #818cf8)' : 'transparent',
-                    color: adminActiveTab === 'all' ? '#0f172a' : '#94a3b8',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontSize: '0.8rem',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <Users size={15} />
-                  Tutti i Dipendenti
-                </button>
+                <>
+                  {/* Tab 3 Globale: Planning Settimanale */}
+                  <button
+                    type="button"
+                    onClick={() => setAdminActiveTab('planning')}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: adminActiveTab === 'planning' ? 'linear-gradient(135deg, #38bdf8, #818cf8)' : 'transparent',
+                      color: adminActiveTab === 'planning' ? '#0f172a' : '#94a3b8',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '0.8rem',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <span>🍕</span>
+                    Planning Settimanale
+                  </button>
+
+                  {/* Tab 4 Globale: Tutti i Dipendenti */}
+                  <button
+                    type="button"
+                    onClick={() => setAdminActiveTab('all')}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: adminActiveTab === 'all' ? 'linear-gradient(135deg, #38bdf8, #818cf8)' : 'transparent',
+                      color: adminActiveTab === 'all' ? '#0f172a' : '#94a3b8',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '0.8rem',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <Users size={15} />
+                    Tutti i Dipendenti
+                  </button>
+                </>
               )}
             </div>
           )}

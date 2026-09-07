@@ -24,9 +24,10 @@ function formatDateLocal(date) {
 
 const DAY_NAMES = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 
-export default function WeeklyPlanning({ employeesList: propEmployeesList, refreshMasterShifts }) {
+export default function WeeklyPlanning({ mode = 'planning', employeesList: propEmployeesList, refreshMasterShifts }) {
   const { currentEmployee, employee, isAdmin } = useAuth();
   const activeEmployee = currentEmployee || employee;
+  const isPersonalMode = mode === 'availabilities';
   const [employeesList, setEmployeesList] = useState(propEmployeesList || []);
   
   // Data del Lunedì della settimana selezionata
@@ -290,10 +291,12 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
         <div>
           <h2 style={{ fontSize: '1.4rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px', color: '#f8fafc' }}>
             <Calendar size={24} color="#38bdf8" />
-            Planning & Disponibilità
+            {isPersonalMode ? 'Le Mie Disponibilità' : 'Planning Settimanale'}
           </h2>
           <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '4px' }}>
-            {isAdmin ? 'Visualizza disponibilità ed assegna i turni per la settimana' : 'Imposta le tue disponibilità per la settimana'}
+            {isPersonalMode
+              ? 'Imposta le tue disponibilità per la settimana (Pranzo e Cena)'
+              : 'Visualizza disponibilità ed assegna i turni per la settimana'}
           </p>
         </div>
 
@@ -355,8 +358,8 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
         </div>
       )}
 
-      {/* Action Bar Admin */}
-      {isAdmin && (
+      {/* Action Bar Admin (Solo in modalità Planning Settimanale) */}
+      {!isPersonalMode && isAdmin && (
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -427,8 +430,8 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
                 </span>
               </div>
 
-              {/* LATO DIPENDENTE: Pulsanti Disponibilità Pranzo/Cena */}
-              {!isAdmin && activeEmployee && (
+              {/* LATO DIPENDENTE / PERSONALE: Pulsanti Disponibilità Pranzo/Cena */}
+              {isPersonalMode && activeEmployee && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <span style={{ fontSize: '0.7rem', color: '#64748b', textAlign: 'center', textTransform: 'uppercase', fontWeight: 700 }}>
                     La tua disponibilità:
@@ -503,7 +506,7 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
               )}
 
               {/* LATO ADMIN: Selettore Dipendenti per Pranzo e Cena */}
-              {isAdmin && (
+              {!isPersonalMode && isAdmin && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {['pranzo', 'cena'].filter(t => !(day.isSunday && t === 'pranzo')).map(turno => (
                     <div key={turno} style={{
