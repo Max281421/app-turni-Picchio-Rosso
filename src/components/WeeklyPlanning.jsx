@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { getSupabaseClient } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { sharePlanningToWhatsApp } from '../lib/whatsappExport';
+import { Calendar, Sun, Moon, Send, CheckCircle2, ChevronLeft, ChevronRight, UserCheck, Clock } from 'lucide-react';
 
 // Helper per ottenere il Lunedì della settimana a partire da una data qualsiasi
 function getMonday(d) {
   const date = new Date(d);
   const day = date.getDay();
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1); // se Domenica (0), sottrai 6 per andare al lunedì precedente
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
   const monday = new Date(date.setDate(diff));
   monday.setHours(0, 0, 0, 0);
   return monday;
@@ -24,14 +25,15 @@ function formatDateLocal(date) {
 const DAY_NAMES = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 
 export default function WeeklyPlanning({ employeesList: propEmployeesList, refreshMasterShifts }) {
-  const { currentEmployee, isAdmin } = useAuth();
+  const { currentEmployee, employee, isAdmin } = useAuth();
+  const activeEmployee = currentEmployee || employee;
   const [employeesList, setEmployeesList] = useState(propEmployeesList || []);
   
-  // Data del Lunedì della settimana selezionata (default: prossima settimana se è fine settimana, altrimenti settimana corrente)
+  // Data del Lunedì della settimana selezionata
   const [currentMonday, setCurrentMonday] = useState(() => {
     const today = new Date();
     const monday = getMonday(today);
-    // Se è venerdì, sabato o domenica, imposta di default la settimana successiva per l'inserimento disponibilità
+    // Se è venerdì, sabato o domenica, imposta di default la settimana successiva per le disponibilità
     if (today.getDay() === 5 || today.getDay() === 6 || today.getDay() === 0) {
       monday.setDate(monday.getDate() + 7);
     }
@@ -63,7 +65,6 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
   const weekStartStr = weekDays[0].dateStr;
   const weekEndStr = weekDays[6].dateStr;
 
-  // Caricamento dati per la settimana selezionata
   useEffect(() => {
     fetchWeekData();
   }, [currentMonday]);
@@ -86,16 +87,13 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
           setEmployeesList(empData);
         }
       }
+
       // 1. Carica disponibilità
-      const { data: availData, error: availError } = await supabase
+      const { data: availData } = await supabase
         .from('availabilities')
         .select('*')
         .gte('data', weekStartStr)
         .lte('data', weekEndStr);
-
-      if (availError && availError.code !== 'PGRST116') {
-        console.error('Errore caricamento disponibilità:', availError);
-      }
 
       const aMap = {};
       if (availData) {
@@ -108,15 +106,11 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
       setAvailabilitiesMap(aMap);
 
       // 2. Carica turni assegnati (dalla tabella shifts)
-      const { data: shiftsData, error: shiftsError } = await supabase
+      const { data: shiftsData } = await supabase
         .from('shifts')
         .select('*')
         .gte('data', weekStartStr)
         .lte('data', weekEndStr);
-
-      if (shiftsError) {
-        console.error('Errore caricamento turni:', shiftsError);
-      }
 
       const sMap = {};
       if (shiftsData) {
@@ -126,13 +120,12 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
       }
       setAssignedShiftsMap(sMap);
     } catch (err) {
-      console.error('Errore generale:', err);
+      console.error('Errore caricamento dati settimana:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Cambio Settimana
   const handlePrevWeek = () => {
     const newM = new Date(currentMonday);
     newM.setDate(newM.getDate() - 7);
@@ -149,15 +142,14 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
     setCurrentMonday(getMonday(new Date()));
   };
 
-  // Toggle Disponibilità (Lato Dipendente o Admin)
+  // Toggle Disponibilità (Lato Dipendente)
   const toggleAvailability = async (empId, dateStr, turno) => {
     const supabase = getSupabaseClient();
-    if (!supabase) return;
+    if (!supabase || !empId) return;
     const key = `${empId}_${dateStr}_${turno}`;
     const currentValue = !!availabilitiesMap[key];
     const newValue = !currentValue;
 
-    // Aggiornamento ottimistico locale UI
     setAvailabilitiesMap(prev => ({
       ...prev,
       [key]: newValue,
@@ -165,7 +157,6 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
 
     try {
       if (newValue) {
-        // Upsert disponibilità
         await supabase.from('availabilities').upsert(
           {
             employee_id: empId,
@@ -176,7 +167,6 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
           { onConflict: 'employee_id,data,turno' }
         );
       } else {
-        // Elimina disponibilità se deselezionata
         await supabase
           .from('availabilities')
           .delete()
@@ -184,7 +174,6 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
       }
     } catch (err) {
       console.error('Errore salvataggio disponibilità:', err);
-      // Revert in caso di errore
       setAvailabilitiesMap(prev => ({
         ...prev,
         [key]: currentValue,
@@ -213,7 +202,6 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
     setSaving(true);
     setMessage(null);
     try {
-      // 1. Recupera i turni attualmente presenti a database per la settimana
       const { data: existingShifts, error: fetchErr } = await supabase
         .from('shifts')
         .select('*')
@@ -227,7 +215,6 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
       const toInsert = [];
       const toDeleteIds = [];
 
-      // Determina quali turni aggiungere e quali rimuovere
       for (const day of weekDays) {
         for (const emp of employeesList) {
           for (const turno of ['pranzo', 'cena']) {
@@ -248,20 +235,15 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
         }
       }
 
-      // Esegui cancellazioni
       if (toDeleteIds.length > 0) {
         const { error: delErr } = await supabase.from('shifts').delete().in('id', toDeleteIds);
         if (delErr) throw delErr;
       }
 
-      // Esegui inserimenti
       if (toInsert.length > 0) {
         const { error: insErr } = await supabase.from('shifts').insert(toInsert);
         if (insErr) throw insErr;
       }
-
-      // Salva un flag di notifica ultimo planning in localStorage
-      localStorage.setItem(`last_published_planning_${weekStartStr}`, new Date().toISOString());
 
       setMessage({ type: 'success', text: '✅ Planning pubblicato con successo su database e turni ufficiali!' });
       if (refreshMasterShifts) refreshMasterShifts();
@@ -274,9 +256,8 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
     }
   };
 
-  // Gestione Condivisione WhatsApp
+  // Condivisione WhatsApp
   const handleWhatsAppShare = () => {
-    // Prepara la struttura dati per il formatter WhatsApp
     const weekDaysArray = weekDays.map(day => {
       const assignedShifts = [];
       for (const emp of employeesList) {
@@ -298,139 +279,239 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
   };
 
   return (
-    <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl p-4 sm:p-6 border border-slate-800 shadow-xl mb-8">
-      {/* Controlli Navigazione Settimana */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800">
+    <div className="glass-card" style={{ padding: '24px', marginBottom: '32px' }}>
+      
+      {/* Header Settimana e Titolo */}
+      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-            <span>📋</span> Planning & Disponibilità
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px', color: '#f8fafc' }}>
+            <Calendar size={24} color="#38bdf8" />
+            Planning & Disponibilità
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400">
-            {isAdmin ? 'Visualizza disponibilità ed assegna i turni della settimana' : 'Imposta le tue disponibilità per la settimana'}
+          <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '4px' }}>
+            {isAdmin ? 'Visualizza disponibilità ed assegna i turni per la settimana' : 'Imposta le tue disponibilità per la settimana'}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 bg-slate-950 p-1.5 rounded-xl border border-slate-800 shadow-inner">
+        {/* Controlli Settimana */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(15, 23, 42, 0.6)', padding: '6px 12px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
           <button
             onClick={handlePrevWeek}
-            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+            className="btn-secondary"
+            style={{ padding: '6px 10px' }}
             title="Settimana precedente"
           >
-            ◀
+            <ChevronLeft size={16} />
           </button>
+          
           <button
             onClick={handleTodayWeek}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600/50 border border-indigo-500/30 transition-colors"
+            style={{
+              padding: '6px 12px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              borderRadius: '8px',
+              background: 'rgba(56, 189, 248, 0.15)',
+              color: '#38bdf8',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              cursor: 'pointer'
+            }}
           >
             Oggi
           </button>
-          <span className="text-xs sm:text-sm font-semibold text-slate-200 px-2 min-w-[140px] text-center">
+
+          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc', padding: '0 8px', minWidth: '130px', textAlign: 'center' }}>
             {weekDays[0].dayFormatted} - {weekDays[6].dayFormatted}
           </span>
+
           <button
             onClick={handleNextWeek}
-            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+            className="btn-secondary"
+            style={{ padding: '6px 10px' }}
             title="Settimana successiva"
           >
-            ▶
+            <ChevronRight size={16} />
           </button>
         </div>
       </div>
 
       {/* Messaggio esito azioni */}
       {message && (
-        <div className={`p-3.5 mb-6 rounded-xl text-sm font-medium border ${message.type === 'success' ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/60' : 'bg-rose-950/60 text-rose-300 border-rose-800/60'}`}>
+        <div style={{
+          padding: '12px 16px',
+          marginBottom: '20px',
+          borderRadius: '12px',
+          fontSize: '0.9rem',
+          fontWeight: 600,
+          background: message.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+          color: message.type === 'success' ? '#34d399' : '#f87171',
+          border: message.type === 'success' ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)'
+        }}>
           {message.text}
         </div>
       )}
 
-      {/* Controlli Azioni Admin Top Bar */}
+      {/* Action Bar Admin */}
       {isAdmin && (
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 mb-6 bg-slate-950/60 rounded-xl border border-slate-800">
-          <span className="text-xs font-medium text-slate-400">
-            Azione Titolare: spunta i turni e pubblica al gruppo
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justify: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+          padding: '14px 18px',
+          marginBottom: '24px',
+          background: 'rgba(15, 23, 42, 0.5)',
+          borderRadius: '12px',
+          border: '1px solid rgba(255, 255, 255, 0.08)'
+        }}>
+          <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 500 }}>
+            ⚡ Spunta i turni e condividi il planning finale col gruppo
           </span>
 
-          <div className="flex items-center gap-3">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <button
               onClick={handleWhatsAppShare}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg transition-all active:scale-95"
+              className="btn-primary"
+              style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', fontSize: '0.85rem', padding: '10px 16px' }}
             >
-              <span>📲</span> Condividi su WhatsApp
+              <Send size={16} />
+              Condividi su WhatsApp
             </button>
 
             <button
               onClick={handlePublishPlanning}
               disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50"
+              className="btn-primary"
+              style={{ fontSize: '0.85rem', padding: '10px 16px', opacity: saving ? 0.6 : 1 }}
             >
-              <span>💾</span> {saving ? 'Salvataggio...' : 'Pubblica Planning'}
+              <CheckCircle2 size={16} />
+              {saving ? 'Salvataggio...' : 'Pubblica Planning'}
             </button>
           </div>
         </div>
       )}
 
       {loading ? (
-        <div className="py-12 text-center text-slate-400">
-          <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-          Caricamento disponibilità...
+        <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8', fontSize: '0.9rem' }}>
+          Caricamento disponibilità in corso...
         </div>
       ) : (
-        /* GRIGLIA SETTIMANALE */
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+        /* GRIGLIA IBRIDA DELLE 7 GIORNATE (LUN - DOM) */
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+          gap: '12px'
+        }}>
           {weekDays.map(day => (
-            <div key={day.dateStr} className="bg-slate-950/50 rounded-xl p-3 border border-slate-800/80 flex flex-col justify-between">
-              {/* Header Giorno */}
-              <div className="text-center pb-2 mb-2 border-b border-slate-800">
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 block">
+            <div key={day.dateStr} style={{
+              background: 'rgba(15, 23, 42, 0.6)',
+              borderRadius: '14px',
+              padding: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              display: 'flex',
+              flexDirection: 'column',
+              justify: 'space-between'
+            }}>
+              {/* Day Header */}
+              <div style={{ textAlign: 'center', paddingBottom: '10px', marginBottom: '10px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: '#38bdf8', letterSpacing: '0.5px', display: 'block' }}>
                   {day.dayName}
                 </span>
-                <span className="text-xs text-slate-400 font-medium">{day.dayFormatted}</span>
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>
+                  {day.dayFormatted}
+                </span>
               </div>
 
-              {/* Sezione per Dipendente: Imposta la propria disponibilità */}
-              {!isAdmin && currentEmployee && (
-                <div className="space-y-2 my-auto">
-                  <p className="text-[10px] text-slate-500 text-center font-medium uppercase">La tua disponibilità:</p>
-                  
+              {/* LATO DIPENDENTE: Pulsanti Disponibilità Pranzo/Cena */}
+              {!isAdmin && activeEmployee && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '0.7rem', color: '#64748b', textAlign: 'center', textTransform: 'uppercase', fontWeight: 700 }}>
+                    La tua disponibilità:
+                  </span>
+
                   {/* Tasto Pranzo */}
                   <button
-                    onClick={() => toggleAvailability(currentEmployee.id, day.dateStr, 'pranzo')}
-                    className={`w-full py-2 px-2 text-xs font-semibold rounded-lg border flex items-center justify-between transition-all ${
-                      availabilitiesMap[`${currentEmployee.id}_${day.dateStr}_pranzo`]
-                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm'
-                        : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:bg-slate-800'
-                    }`}
+                    type="button"
+                    onClick={() => toggleAvailability(activeEmployee.id, day.dateStr, 'pranzo')}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`]
+                        ? '1px solid rgba(245, 158, 11, 0.5)'
+                        : '1px solid rgba(255, 255, 255, 0.08)',
+                      background: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`]
+                        ? 'rgba(245, 158, 11, 0.2)'
+                        : 'rgba(30, 41, 59, 0.6)',
+                      color: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`]
+                        ? '#fbbf24'
+                        : '#94a3b8',
+                      fontWeight: 600,
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justify: 'space-between',
+                      transition: 'all 0.2s'
+                    }}
                   >
-                    <span>☀️ Pranzo</span>
-                    <span>{availabilitiesMap[`${currentEmployee.id}_${day.dateStr}_pranzo`] ? '✅' : '❌'}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Sun size={13} color={availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`] ? '#fbbf24' : '#94a3b8'} />
+                      Pranzo
+                    </span>
+                    <span>{availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`] ? '✅' : '❌'}</span>
                   </button>
 
                   {/* Tasto Cena */}
                   <button
-                    onClick={() => toggleAvailability(currentEmployee.id, day.dateStr, 'cena')}
-                    className={`w-full py-2 px-2 text-xs font-semibold rounded-lg border flex items-center justify-between transition-all ${
-                      availabilitiesMap[`${currentEmployee.id}_${day.dateStr}_cena`]
-                        ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50 shadow-sm'
-                        : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:bg-slate-800'
-                    }`}
+                    type="button"
+                    onClick={() => toggleAvailability(activeEmployee.id, day.dateStr, 'cena')}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_cena`]
+                        ? '1px solid rgba(99, 102, 241, 0.5)'
+                        : '1px solid rgba(255, 255, 255, 0.08)',
+                      background: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_cena`]
+                        ? 'rgba(99, 102, 241, 0.2)'
+                        : 'rgba(30, 41, 59, 0.6)',
+                      color: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_cena`]
+                        ? '#a5b4fc'
+                        : '#94a3b8',
+                      fontWeight: 600,
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justify: 'space-between',
+                      transition: 'all 0.2s'
+                    }}
                   >
-                    <span>🌙 Cena</span>
-                    <span>{availabilitiesMap[`${currentEmployee.id}_${day.dateStr}_cena`] ? '✅' : '❌'}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Moon size={13} color={availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_cena`] ? '#a5b4fc' : '#94a3b8'} />
+                      Cena
+                    </span>
+                    <span>{availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_cena`] ? '✅' : '❌'}</span>
                   </button>
                 </div>
               )}
 
-              {/* Sezione per Admin: Assegna Turni ai Dipendenti Disponibili */}
+              {/* LATO ADMIN: Selettore Dipendenti per Pranzo e Cena */}
               {isAdmin && (
-                <div className="space-y-3">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {['pranzo', 'cena'].map(turno => (
-                    <div key={turno} className="bg-slate-900/80 p-2 rounded-lg border border-slate-800">
-                      <div className="text-[11px] font-bold text-slate-300 flex items-center justify-between mb-1.5">
-                        <span>{turno === 'pranzo' ? '☀️ Pranzo' : '🌙 Cena'}</span>
+                    <div key={turno} style={{
+                      background: 'rgba(30, 41, 59, 0.5)',
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255, 255, 255, 0.06)'
+                    }}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: turno === 'pranzo' ? '#fbbf24' : '#a5b4fc', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
+                        {turno === 'pranzo' ? <Sun size={12} /> : <Moon size={12} />}
+                        <span style={{ textTransform: 'capitalize' }}>{turno}</span>
                       </div>
 
-                      <div className="space-y-1.5">
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         {employeesList.map(emp => {
                           const isAvail = !!availabilitiesMap[`${emp.id}_${day.dateStr}_${turno}`];
                           const isAssigned = !!assignedShiftsMap[`${emp.id}_${day.dateStr}_${turno}`];
@@ -438,19 +519,52 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
                           return (
                             <button
                               key={emp.id}
+                              type="button"
                               onClick={() => toggleShiftAssignment(emp.id, day.dateStr, turno)}
-                              className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center justify-between border transition-all ${
-                                isAssigned
-                                  ? 'bg-emerald-950/80 text-emerald-200 border-emerald-600/80 font-bold shadow'
+                              style={{
+                                width: '100%',
+                                textAlign: 'left',
+                                padding: '5px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.72rem',
+                                fontWeight: isAssigned ? 700 : 500,
+                                border: isAssigned
+                                  ? '1px solid rgba(16, 185, 129, 0.8)'
+                                  : '1px solid transparent',
+                                background: isAssigned
+                                  ? 'rgba(16, 185, 129, 0.25)'
                                   : isAvail
-                                  ? 'bg-slate-800/90 text-slate-200 border-slate-700 hover:border-emerald-600/50'
-                                  : 'bg-slate-950/40 text-slate-500 border-transparent hover:bg-slate-800/50'
-                              }`}
+                                  ? 'rgba(51, 65, 85, 0.7)'
+                                  : 'rgba(15, 23, 42, 0.4)',
+                                color: isAssigned
+                                  ? '#34d399'
+                                  : isAvail
+                                  ? '#f8fafc'
+                                  : '#64748b',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                transition: 'all 0.15s'
+                              }}
                             >
-                              <span className="truncate">{emp.nome}</span>
-                              <div className="flex items-center gap-1">
-                                {isAvail && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-sm" title="Disponibile"></span>}
-                                <span className="text-[10px]">{isAssigned ? '✓' : ''}</span>
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {emp.nome}
+                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                {isAvail && (
+                                  <span
+                                    style={{
+                                      width: '6px',
+                                      height: '6px',
+                                      borderRadius: '50%',
+                                      background: '#34d399',
+                                      display: 'inline-block'
+                                    }}
+                                    title="Disponibile"
+                                  />
+                                )}
+                                {isAssigned && <span>✓</span>}
                               </div>
                             </button>
                           );
@@ -460,6 +574,7 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
                   ))}
                 </div>
               )}
+
             </div>
           ))}
         </div>
