@@ -159,23 +159,29 @@ export function AuthProvider({ children }) {
         data: { nome, ruolo }
       });
 
-      const { data: empData } = await supabase
+      // 2. Inserimento sicuro in public.employees con .insert() che rispetta le policy RLS di registrazione
+      const { data: empData, error: empErr } = await supabase
         .from('employees')
-        .upsert([
-          {
-            id: userObj.id,
-            auth_user_id: userObj.id,
-            nome,
-            ruolo
-          }
-        ], { onConflict: 'auth_user_id' })
+        .insert([{ auth_user_id: userObj.id, nome, ruolo }])
         .select()
         .maybeSingle();
 
       if (empData) {
         setEmployee(empData);
       } else {
-        setEmployee({ id: userObj.id, auth_user_id: userObj.id, nome, ruolo });
+        // Se la insert ha dato errore (es. se già esistente), ricarica con .select()
+        const { data: retryEmp } = await supabase
+          .from('employees')
+          .select('*')
+          .eq('auth_user_id', userObj.id)
+          .maybeSingle();
+
+        if (retryEmp) {
+          setEmployee(retryEmp);
+        } else {
+          console.warn('Fallback employee profile initialized:', empErr);
+          setEmployee({ id: userObj.id, auth_user_id: userObj.id, nome, ruolo });
+        }
       }
     }
 

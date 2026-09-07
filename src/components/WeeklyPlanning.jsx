@@ -176,10 +176,37 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
   const toggleAvailability = async (empId, dateStr, turno) => {
     const supabase = getSupabaseClient();
     if (!supabase || !empId) return;
-    const key = `${empId}_${dateStr}_${turno}`;
+
+    let targetEmpId = empId;
+
+    // Assicuriamoci che targetEmpId corrisponda al record id reale presente in public.employees
+    if (activeEmployee) {
+      const { data: empRecord } = await supabase
+        .from('employees')
+        .select('id')
+        .eq('auth_user_id', activeEmployee.auth_user_id || activeEmployee.id)
+        .maybeSingle();
+
+      if (empRecord?.id) {
+        targetEmpId = empRecord.id;
+      } else {
+        // Se non esiste ancora in employees, creiamolo al volo per garantire il Foreign Key
+        const { data: createdEmp } = await supabase
+          .from('employees')
+          .insert([{ auth_user_id: activeEmployee.auth_user_id || activeEmployee.id, nome: activeEmployee.nome || 'Admin', ruolo: activeEmployee.ruolo || 'admin' }])
+          .select('id')
+          .maybeSingle();
+        if (createdEmp?.id) {
+          targetEmpId = createdEmp.id;
+        }
+      }
+    }
+
+    const key = `${targetEmpId}_${dateStr}_${turno}`;
     const currentValue = !!availabilitiesMap[key];
     const newValue = !currentValue;
 
+    // Aggiornamento ottimistico locale UI
     setAvailabilitiesMap(prev => ({
       ...prev,
       [key]: newValue,
@@ -189,7 +216,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       if (newValue) {
         await supabase.from('availabilities').upsert(
           {
-            employee_id: empId,
+            employee_id: targetEmpId,
             data: dateStr,
             turno: turno,
             is_available: true,
@@ -200,7 +227,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         await supabase
           .from('availabilities')
           .delete()
-          .match({ employee_id: empId, data: dateStr, turno: turno });
+          .match({ employee_id: targetEmpId, data: dateStr, turno: turno });
       }
     } catch (err) {
       console.error('Errore salvataggio disponibilità:', err);
