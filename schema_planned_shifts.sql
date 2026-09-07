@@ -16,6 +16,15 @@ CREATE INDEX IF NOT EXISTS idx_planned_shifts_data ON public.planned_shifts(data
 -- Abilita RLS
 ALTER TABLE public.planned_shifts ENABLE ROW LEVEL SECURITY;
 
+-- Politica RLS di accesso completo su employees (per consentire test e creazione automatica profilazione)
+DROP POLICY IF EXISTS "Gli utenti possono creare il proprio profilo employee" ON public.employees;
+DROP POLICY IF EXISTS "Accesso completo employees per tutti" ON public.employees;
+
+CREATE POLICY "Accesso completo employees per tutti"
+ON public.employees FOR ALL
+USING (true)
+WITH CHECK (true);
+
 -- Politiche RLS di accesso completo per utenti autenticati e anonimi (coerente con availabilities e shifts)
 DROP POLICY IF EXISTS "Allow public read access on planned_shifts" ON public.planned_shifts;
 DROP POLICY IF EXISTS "Allow authenticated insert on planned_shifts" ON public.planned_shifts;
@@ -29,5 +38,7 @@ USING (true)
 WITH CHECK (true);
 
 -- PERMESSI FONDAMENTALI PER SUPABASE POSTGREST API (Senza questi Postgres restituisce errore 42501 permission denied)
+GRANT ALL ON TABLE public.employees TO authenticated;
+GRANT ALL ON TABLE public.employees TO anon;
 GRANT ALL ON TABLE public.planned_shifts TO authenticated;
 GRANT ALL ON TABLE public.planned_shifts TO anon;
