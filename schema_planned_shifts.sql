@@ -6,44 +6,28 @@ CREATE TABLE IF NOT EXISTS public.planned_shifts (
   data DATE NOT NULL,
   turno VARCHAR(10) NOT NULL CHECK (turno IN ('pranzo', 'cena')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE (employee_id, data, turno)
+  CONSTRAINT unique_planned_shift UNIQUE (employee_id, data, turno)
 );
+
+-- Indici per velocizzare i filtri per dipendente e data
+CREATE INDEX IF NOT EXISTS idx_planned_shifts_employee_date ON public.planned_shifts(employee_id, data);
+CREATE INDEX IF NOT EXISTS idx_planned_shifts_data ON public.planned_shifts(data);
 
 -- Abilita RLS
 ALTER TABLE public.planned_shifts ENABLE ROW LEVEL SECURITY;
 
--- Criteri di accesso RLS per Supabase
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename = 'planned_shifts' AND policyname = 'Allow public read access on planned_shifts'
-  ) THEN
-    CREATE POLICY "Allow public read access on planned_shifts"
-      ON public.planned_shifts FOR SELECT
-      USING (true);
-  END IF;
+-- Politiche RLS di accesso completo per utenti autenticati e anonimi (coerente con availabilities e shifts)
+DROP POLICY IF EXISTS "Allow public read access on planned_shifts" ON public.planned_shifts;
+DROP POLICY IF EXISTS "Allow authenticated insert on planned_shifts" ON public.planned_shifts;
+DROP POLICY IF EXISTS "Allow authenticated update on planned_shifts" ON public.planned_shifts;
+DROP POLICY IF EXISTS "Allow authenticated delete on planned_shifts" ON public.planned_shifts;
+DROP POLICY IF EXISTS "Accesso completo planned_shifts per tutti" ON public.planned_shifts;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename = 'planned_shifts' AND policyname = 'Allow authenticated insert on planned_shifts'
-  ) THEN
-    CREATE POLICY "Allow authenticated insert on planned_shifts"
-      ON public.planned_shifts FOR INSERT
-      WITH CHECK (true);
-  END IF;
+CREATE POLICY "Accesso completo planned_shifts per tutti"
+ON public.planned_shifts FOR ALL
+USING (true)
+WITH CHECK (true);
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename = 'planned_shifts' AND policyname = 'Allow authenticated update on planned_shifts'
-  ) THEN
-    CREATE POLICY "Allow authenticated update on planned_shifts"
-      ON public.planned_shifts FOR UPDATE
-      USING (true);
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename = 'planned_shifts' AND policyname = 'Allow authenticated delete on planned_shifts'
-  ) THEN
-    CREATE POLICY "Allow authenticated delete on planned_shifts"
-      ON public.planned_shifts FOR DELETE
-      USING (true);
-  END IF;
-END $$;
+-- PERMESSI FONDAMENTALI PER SUPABASE POSTGREST API (Senza questi Postgres restituisce errore 42501 permission denied)
+GRANT ALL ON TABLE public.planned_shifts TO authenticated;
+GRANT ALL ON TABLE public.planned_shifts TO anon;

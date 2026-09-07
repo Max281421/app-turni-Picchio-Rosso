@@ -336,7 +336,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         existingMap.set(`${s.employee_id}_${s.data}_${s.turno}`, s.id);
       });
 
-      const toInsert = [];
+      const rawInsert = [];
       const toDeleteIds = [];
 
       for (const day of weekDays) {
@@ -353,7 +353,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                                (emp.auth_user_id ? existingMap.get(`${emp.auth_user_id}_${day.dateStr}_${turno}`) : null);
 
             if (isAssignedShift && !existingId) {
-              toInsert.push({
+              rawInsert.push({
                 employee_id: targetEmpDbId,
                 data: day.dateStr,
                 turno: turno,
@@ -365,14 +365,37 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         }
       }
 
-      if (toDeleteIds.length > 0) {
-        const { error: delErr } = await supabase.from('planned_shifts').delete().in('id', toDeleteIds);
-        if (delErr) throw delErr;
+      // Deduplica gli inserimenti per prevenire errori di Unique Constraint
+      const toInsert = [];
+      const seenKeys = new Set();
+      for (const item of rawInsert) {
+        const key = `${item.employee_id}_${item.data}_${item.turno}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          toInsert.push(item);
+        }
+      }
+
+      const uniqueDeleteIds = Array.from(new Set(toDeleteIds));
+
+      if (uniqueDeleteIds.length > 0) {
+        const { error: delErr } = await supabase.from('planned_shifts').delete().in('id', uniqueDeleteIds);
+        if (delErr) {
+          if (delErr.code === '42501') {
+            throw new Error('Permessi insufficienti su planned_shifts (Errore 42501). Esegui il file SQL schema_planned_shifts.sql aggiornato su Supabase per concedere le GRANT.');
+          }
+          throw delErr;
+        }
       }
 
       if (toInsert.length > 0) {
         const { error: insErr } = await supabase.from('planned_shifts').insert(toInsert);
-        if (insErr) throw insErr;
+        if (insErr) {
+          if (insErr.code === '42501') {
+            throw new Error('Permessi insufficienti su planned_shifts (Errore 42501). Esegui il file SQL schema_planned_shifts.sql aggiornato su Supabase per concedere le GRANT.');
+          }
+          throw insErr;
+        }
       }
 
       try {
