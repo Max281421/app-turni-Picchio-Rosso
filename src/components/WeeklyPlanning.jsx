@@ -368,11 +368,17 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
   const handleWhatsAppShare = () => {
     const weekDaysArray = weekDays.map(day => {
       const assignedShifts = [];
+      const availableShifts = [];
+
       for (const emp of employeesList) {
         for (const turno of ['pranzo', 'cena']) {
           if (day.isSunday && turno === 'pranzo') continue;
+
           if (isAssigned(emp, day.dateStr, turno)) {
             assignedShifts.push({ employee_id: emp.id, turno });
+          }
+          if (isAvailable(emp, day.dateStr, turno)) {
+            availableShifts.push({ employee_id: emp.id, turno });
           }
         }
       }
@@ -380,6 +386,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         date: day.date,
         dateStr: day.dateStr,
         assignedShifts,
+        availableShifts,
       };
     });
 

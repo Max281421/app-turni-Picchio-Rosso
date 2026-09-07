@@ -36,7 +36,7 @@ export function generateWhatsAppPlanningText(weekDaysArray, employeesList) {
     if (e.auth_user_id) employeeMap.set(e.auth_user_id, shortName);
   });
 
-  const lines = ['🍕 *PLANNING SETTIMANALE* 🍕', ''];
+  const lines = [];
 
   // Ordiniamo dal Lunedì (index 1) alla Domenica (index 0)
   // Reorder days so Monday comes first
@@ -54,25 +54,29 @@ export function generateWhatsAppPlanningText(weekDaysArray, employeesList) {
 
     const dayCode = DAY_NAMES_SHORT[dayOfWeek];
 
+    // Se ci sono turni assegnati usa quelli, altrimenti usa le disponibilità inserite
+    let targetShifts = dayObj.assignedShifts && dayObj.assignedShifts.length > 0
+      ? dayObj.assignedShifts
+      : (dayObj.availableShifts || []);
+
     // Raccogliamo gli employee_id che lavorano (escludendo pranzo la domenica)
-    const validShifts = dayObj.assignedShifts.filter(s => {
+    const validShifts = targetShifts.filter(s => {
       if (dayOfWeek === 0 && s.turno === 'pranzo') return false;
       return true;
     });
 
-    const assignedIds = new Set(validShifts.map(s => s.employee_id));
+    const targetIds = new Set(validShifts.map(s => s.employee_id));
 
-    if (assignedIds.size > 0) {
-      const names = Array.from(assignedIds)
+    if (targetIds.size > 0) {
+      const names = Array.from(targetIds)
         .map(id => employeeMap.get(id))
         .filter(Boolean)
         .join(' ');
-      lines.push(`${dayCode} ${names}`);
+      if (names.trim()) {
+        lines.push(`${dayCode} ${names.trim()}`);
+      }
     }
   }
-
-  lines.push('');
-  lines.push('📌 _Inviato tramite App Turni_');
 
   return lines.join('\n');
 }
