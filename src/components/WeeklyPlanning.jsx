@@ -52,8 +52,8 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
   // Mappa dei turni pianificati/assegnati: key `${employee_id}_${dateStr}_${turno}` -> boolean
   const [assignedShiftsMap, setAssignedShiftsMap] = useState({});
 
-  // Calcola le date della settimana corrente (Martedì escluso per chiusura)
-  const fullWeekDays = Array.from({ length: 7 }, (_, i) => {
+  // Calcola le 7 date della settimana corrente (incluso Martedì)
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(currentMonday);
     d.setDate(d.getDate() + i);
     return {
@@ -66,10 +66,8 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
     };
   });
 
-  const weekDays = fullWeekDays.filter(day => !day.isTuesday);
-
   const weekStartStr = weekDays[0].dateStr;
-  const weekEndStr = weekDays[weekDays.length - 1].dateStr;
+  const weekEndStr = weekDays[6].dateStr;
 
   useEffect(() => {
     fetchWeekData();
@@ -323,6 +321,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       const toDeleteIds = [];
 
       for (const day of weekDays) {
+        if (day.isTuesday) continue;
         for (const emp of employeesList) {
           for (const turno of ['pranzo', 'cena']) {
             if (day.isSunday && turno === 'pranzo') continue;
@@ -369,6 +368,10 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
     const weekDaysArray = weekDays.map(day => {
       const assignedShifts = [];
       const availableShifts = [];
+
+      if (day.isTuesday) {
+        return { date: day.date, dateStr: day.dateStr, assignedShifts: [], availableShifts: [] };
+      }
 
       for (const emp of employeesList) {
         for (const turno of ['pranzo', 'cena']) {
@@ -438,7 +441,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
           </button>
 
           <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc', padding: '0 8px', minWidth: '130px', textAlign: 'center' }}>
-            {weekDays[0].dayFormatted} - {weekDays[weekDays.length - 1].dayFormatted}
+            {weekDays[0].dayFormatted} - {weekDays[6].dayFormatted}
           </span>
 
           <button
@@ -473,7 +476,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          justify: 'space-between',
           flexWrap: 'wrap',
           gap: '12px',
           padding: '14px 18px',
@@ -514,25 +517,26 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
           Caricamento disponibilità in corso...
         </div>
       ) : (
-        /* GRIGLIA IBRIDA DELLE GIORNATE */
+        /* GRIGLIA IBRIDA DELLE 7 GIORNATE (LUN - DOM) */
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(125px, 1fr))',
           gap: '12px'
         }}>
           {weekDays.map(day => (
             <div key={day.dateStr} style={{
-              background: 'rgba(15, 23, 42, 0.6)',
+              background: day.isTuesday ? 'rgba(15, 23, 42, 0.35)' : 'rgba(15, 23, 42, 0.6)',
               borderRadius: '14px',
               padding: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              border: day.isTuesday ? '1px solid rgba(255, 255, 255, 0.04)' : '1px solid rgba(255, 255, 255, 0.08)',
+              opacity: day.isTuesday ? 0.65 : 1,
               display: 'flex',
               flexDirection: 'column',
               justify: 'space-between'
             }}>
               {/* Day Header */}
               <div style={{ textAlign: 'center', paddingBottom: '10px', marginBottom: '10px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: '#38bdf8', letterSpacing: '0.5px', display: 'block' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: day.isTuesday ? '#64748b' : '#38bdf8', letterSpacing: '0.5px', display: 'block' }}>
                   {day.dayName}
                 </span>
                 <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>
@@ -544,154 +548,233 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
               {isPersonalMode && activeEmployee && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <span style={{ fontSize: '0.7rem', color: '#64748b', textAlign: 'center', textTransform: 'uppercase', fontWeight: 700 }}>
-                    La tua disponibilità:
+                    {day.isTuesday ? 'Giorno di Chiusura' : 'La tua disponibilità:'}
                   </span>
 
-                  {/* Tasto Pranzo (Solo da Lunedì a Sabato) */}
-                  {!day.isSunday && (
-                    <button
-                      type="button"
-                      onClick={() => toggleAvailability(activeEmployee.id, day.dateStr, 'pranzo')}
-                      style={{
-                        padding: '8px 10px',
-                        borderRadius: '8px',
-                        border: isAvailable(activeEmployee, day.dateStr, 'pranzo')
-                          ? '1px solid rgba(245, 158, 11, 0.5)'
-                          : '1px solid rgba(255, 255, 255, 0.08)',
-                        background: isAvailable(activeEmployee, day.dateStr, 'pranzo')
-                          ? 'rgba(245, 158, 11, 0.2)'
-                          : 'rgba(30, 41, 59, 0.6)',
-                        color: isAvailable(activeEmployee, day.dateStr, 'pranzo')
-                          ? '#fbbf24'
-                          : '#94a3b8',
-                        fontWeight: 600,
-                        fontSize: '0.75rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justify: 'space-between',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Sun size={13} color={isAvailable(activeEmployee, day.dateStr, 'pranzo') ? '#fbbf24' : '#94a3b8'} />
-                        Pranzo
-                      </span>
-                      <span>{isAvailable(activeEmployee, day.dateStr, 'pranzo') ? '✅' : '❌'}</span>
-                    </button>
-                  )}
-
-                  {/* Tasto Cena */}
-                  <button
-                    type="button"
-                    onClick={() => toggleAvailability(activeEmployee.id, day.dateStr, 'cena')}
-                    style={{
-                      padding: '8px 10px',
+                  {day.isTuesday ? (
+                    <div style={{
+                      padding: '24px 8px',
+                      textAlign: 'center',
+                      background: 'rgba(30, 41, 59, 0.3)',
                       borderRadius: '8px',
-                      border: isAvailable(activeEmployee, day.dateStr, 'cena')
-                        ? '1px solid rgba(99, 102, 241, 0.5)'
-                        : '1px solid rgba(255, 255, 255, 0.08)',
-                      background: isAvailable(activeEmployee, day.dateStr, 'cena')
-                        ? 'rgba(99, 102, 241, 0.2)'
-                        : 'rgba(30, 41, 59, 0.6)',
-                      color: isAvailable(activeEmployee, day.dateStr, 'cena')
-                        ? '#a5b4fc'
-                        : '#94a3b8',
-                      fontWeight: 600,
+                      border: '1px solid rgba(255, 255, 255, 0.04)',
+                      color: '#64748b',
                       fontSize: '0.75rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justify: 'space-between',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Moon size={13} color={isAvailable(activeEmployee, day.dateStr, 'cena') ? '#a5b4fc' : '#94a3b8'} />
-                      Cena
-                    </span>
-                    <span>{isAvailable(activeEmployee, day.dateStr, 'cena') ? '✅' : '❌'}</span>
-                  </button>
+                      fontWeight: 700,
+                      letterSpacing: '0.5px'
+                    }}>
+                      🔒 CHIUSO
+                    </div>
+                  ) : (
+                    <>
+                      {/* Tasto Pranzo (Solo da Lunedì a Sabato) */}
+                      {!day.isSunday ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleAvailability(activeEmployee.id, day.dateStr, 'pranzo')}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            border: isAvailable(activeEmployee, day.dateStr, 'pranzo')
+                              ? '1px solid rgba(245, 158, 11, 0.5)'
+                              : '1px solid rgba(255, 255, 255, 0.08)',
+                            background: isAvailable(activeEmployee, day.dateStr, 'pranzo')
+                              ? 'rgba(245, 158, 11, 0.2)'
+                              : 'rgba(30, 41, 59, 0.6)',
+                            color: isAvailable(activeEmployee, day.dateStr, 'pranzo')
+                              ? '#fbbf24'
+                              : '#94a3b8',
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justify: 'space-between',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Sun size={13} color={isAvailable(activeEmployee, day.dateStr, 'pranzo') ? '#fbbf24' : '#94a3b8'} />
+                            Pranzo
+                          </span>
+                          <span>{isAvailable(activeEmployee, day.dateStr, 'pranzo') ? '✅' : '❌'}</span>
+                        </button>
+                      ) : (
+                        /* Spacer trasparente la Domenica a Pranzo per allineare orizzontalmente il pulsante Cena con gli altri giorni */
+                        <div style={{
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          border: '1px solid transparent',
+                          visibility: 'hidden',
+                          userSelect: 'none'
+                        }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}>
+                            <Sun size={13} />
+                            Pranzo
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Tasto Cena */}
+                      <button
+                        type="button"
+                        onClick={() => toggleAvailability(activeEmployee.id, day.dateStr, 'cena')}
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          border: isAvailable(activeEmployee, day.dateStr, 'cena')
+                            ? '1px solid rgba(99, 102, 241, 0.5)'
+                            : '1px solid rgba(255, 255, 255, 0.08)',
+                          background: isAvailable(activeEmployee, day.dateStr, 'cena')
+                            ? 'rgba(99, 102, 241, 0.2)'
+                            : 'rgba(30, 41, 59, 0.6)',
+                          color: isAvailable(activeEmployee, day.dateStr, 'cena')
+                            ? '#a5b4fc'
+                            : '#94a3b8',
+                          fontWeight: 600,
+                          fontSize: '0.75rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justify: 'space-between',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Moon size={13} color={isAvailable(activeEmployee, day.dateStr, 'cena') ? '#a5b4fc' : '#94a3b8'} />
+                          Cena
+                        </span>
+                        <span>{isAvailable(activeEmployee, day.dateStr, 'cena') ? '✅' : '❌'}</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
 
               {/* LATO ADMIN: Selettore Dipendenti per Pranzo e Cena */}
               {!isPersonalMode && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {['pranzo', 'cena'].filter(t => !(day.isSunday && t === 'pranzo')).map(turno => (
-                    <div key={turno} style={{
-                      background: 'rgba(30, 41, 59, 0.5)',
-                      padding: '8px',
+                  {day.isTuesday ? (
+                    <div style={{
+                      padding: '24px 8px',
+                      textAlign: 'center',
+                      background: 'rgba(30, 41, 59, 0.3)',
                       borderRadius: '8px',
-                      border: '1px solid rgba(255, 255, 255, 0.06)'
+                      border: '1px solid rgba(255, 255, 255, 0.04)',
+                      color: '#64748b',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.5px'
                     }}>
-                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: turno === 'pranzo' ? '#fbbf24' : '#a5b4fc', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
-                        {turno === 'pranzo' ? <Sun size={12} /> : <Moon size={12} />}
-                        <span style={{ textTransform: 'capitalize' }}>{turno}</span>
-                      </div>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        {employeesList.map(emp => {
-                          const empAvail = isAvailable(emp, day.dateStr, turno);
-                          const empAssigned = isAssigned(emp, day.dateStr, turno);
-
-                          return (
-                            <button
-                              key={emp.id}
-                              type="button"
-                              onClick={() => isAdmin && toggleShiftAssignment(emp, day.dateStr, turno)}
-                              disabled={!isAdmin}
-                              style={{
-                                width: '100%',
-                                textAlign: 'left',
-                                padding: '5px 8px',
-                                borderRadius: '6px',
-                                fontSize: '0.72rem',
-                                fontWeight: empAssigned ? 700 : 500,
-                                border: empAssigned
-                                  ? '1px solid rgba(16, 185, 129, 0.8)'
-                                  : '1px solid transparent',
-                                background: empAssigned
-                                  ? 'rgba(16, 185, 129, 0.25)'
-                                  : empAvail
-                                  ? 'rgba(51, 65, 85, 0.7)'
-                                  : 'rgba(15, 23, 42, 0.4)',
-                                color: empAssigned
-                                  ? '#34d399'
-                                  : empAvail
-                                  ? '#f8fafc'
-                                  : '#64748b',
-                                cursor: isAdmin ? 'pointer' : 'default',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                transition: 'all 0.15s'
-                              }}
-                            >
-                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {emp.nome}
-                              </span>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                {empAvail && (
-                                  <span
-                                    style={{
-                                      width: '6px',
-                                      height: '6px',
-                                      borderRadius: '50%',
-                                      background: '#34d399',
-                                      display: 'inline-block'
-                                    }}
-                                    title="Disponibile"
-                                  />
-                                )}
-                                {empAssigned && <span>✓</span>}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
+                      🔒 CHIUSO
                     </div>
-                  ))}
+                  ) : (
+                    ['pranzo', 'cena'].map(turno => {
+                      if (day.isSunday && turno === 'pranzo') {
+                        /* Spacer la Domenica a Pranzo per allineare il box Cena con gli altri giorni */
+                        return (
+                          <div
+                            key="pranzo-spacer-sunday"
+                            style={{
+                              background: 'transparent',
+                              padding: '8px',
+                              borderRadius: '8px',
+                              border: '1px solid transparent',
+                              visibility: 'hidden',
+                              userSelect: 'none'
+                            }}
+                          >
+                            <div style={{ fontSize: '0.7rem', fontWeight: 700, gap: '4px', marginBottom: '6px' }}>
+                              <Sun size={12} />
+                              <span>Pranzo</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {employeesList.map(emp => (
+                                <div key={emp.id} style={{ padding: '5px 8px', fontSize: '0.72rem' }}>
+                                  {emp.nome}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div key={turno} style={{
+                          background: 'rgba(30, 41, 59, 0.5)',
+                          padding: '8px',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(255, 255, 255, 0.06)'
+                        }}>
+                          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: turno === 'pranzo' ? '#fbbf24' : '#a5b4fc', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
+                            {turno === 'pranzo' ? <Sun size={12} /> : <Moon size={12} />}
+                            <span style={{ textTransform: 'capitalize' }}>{turno}</span>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {employeesList.map(emp => {
+                              const empAvail = isAvailable(emp, day.dateStr, turno);
+                              const empAssigned = isAssigned(emp, day.dateStr, turno);
+
+                              return (
+                                <button
+                                  key={emp.id}
+                                  type="button"
+                                  onClick={() => isAdmin && toggleShiftAssignment(emp, day.dateStr, turno)}
+                                  disabled={!isAdmin}
+                                  style={{
+                                    width: '100%',
+                                    textAlign: 'left',
+                                    padding: '5px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: empAssigned ? 700 : 500,
+                                    border: empAssigned
+                                      ? '1px solid rgba(16, 185, 129, 0.8)'
+                                      : '1px solid transparent',
+                                    background: empAssigned
+                                      ? 'rgba(16, 185, 129, 0.25)'
+                                      : empAvail
+                                      ? 'rgba(51, 65, 85, 0.7)'
+                                      : 'rgba(15, 23, 42, 0.4)',
+                                    color: empAssigned
+                                      ? '#34d399'
+                                      : empAvail
+                                      ? '#f8fafc'
+                                      : '#64748b',
+                                    cursor: isAdmin ? 'pointer' : 'default',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justify: 'space-between',
+                                    transition: 'all 0.15s'
+                                  }}
+                                >
+                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {emp.nome}
+                                  </span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    {empAvail && (
+                                      <span
+                                        style={{
+                                          width: '6px',
+                                          height: '6px',
+                                          borderRadius: '50%',
+                                          background: '#34d399',
+                                          display: 'inline-block'
+                                        }}
+                                        title="Disponibile"
+                                      />
+                                    )}
+                                    {empAssigned && <span>✓</span>}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               )}
 
