@@ -46,8 +46,10 @@ export function generateWhatsAppPlanningText(weekDaysArray, employeesList) {
     return dayA - dayB;
   });
 
-  // Controlla se c'è almeno un turno assegnato ufficialmente nell'intera settimana
-  const hasAnyAssigned = reorderedDays.some(dayObj => dayObj.assignedShifts && dayObj.assignedShifts.length > 0);
+  // Controlla se c'è almeno un turno di cena assegnato ufficialmente nell'intera settimana
+  const hasAnyAssigned = reorderedDays.some(
+    dayObj => dayObj.assignedShifts && dayObj.assignedShifts.some(s => s.turno === 'cena')
+  );
 
   for (const dayObj of reorderedDays) {
     const dayOfWeek = dayObj.date.getDay(); // 0 = DOM, 1 = LUN, 2 = MAR, etc.
@@ -57,17 +59,14 @@ export function generateWhatsAppPlanningText(weekDaysArray, employeesList) {
 
     const dayCode = DAY_NAMES_SHORT[dayOfWeek];
 
-    // Se c'è almeno un turno assegnato nell'intera settimana, usa ESCLUSIVAMENTE i turni assegnati.
-    // Se l'admin non ha ancora assegnato alcun turno nella settimana, fa da fallback sulle disponibilità.
+    // Se c'è almeno un turno di cena assegnato nell'intera settimana, usa ESCLUSIVAMENTE i turni assegnati.
+    // Se l'admin non ha ancora assegnato alcun turno di cena nella settimana, fa da fallback sulle disponibilità.
     const targetShifts = hasAnyAssigned
       ? (dayObj.assignedShifts || [])
       : (dayObj.availableShifts || []);
 
-    // Raccogliamo gli employee_id che lavorano (escludendo pranzo la domenica)
-    const validShifts = targetShifts.filter(s => {
-      if (dayOfWeek === 0 && s.turno === 'pranzo') return false;
-      return true;
-    });
+    // Raccogliamo solo gli employee_id assegnati/disponibili per il turno di CENA (i pranzi figurano solo sull'app)
+    const validShifts = targetShifts.filter(s => s.turno === 'cena');
 
     const targetIds = new Set(validShifts.map(s => s.employee_id));
 
