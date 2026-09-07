@@ -67,7 +67,7 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
   const weekDays = fullWeekDays.filter(day => !day.isTuesday);
 
   const weekStartStr = weekDays[0].dateStr;
-  const weekEndStr = weekDays[6].dateStr;
+  const weekEndStr = weekDays[weekDays.length - 1].dateStr;
 
   useEffect(() => {
     fetchWeekData();
@@ -325,7 +325,7 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
           </button>
 
           <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc', padding: '0 8px', minWidth: '130px', textAlign: 'center' }}>
-            {weekDays[0].dayFormatted} - {weekDays[6].dayFormatted}
+            {weekDays[0].dayFormatted} - {weekDays[weekDays.length - 1].dayFormatted}
           </span>
 
           <button
