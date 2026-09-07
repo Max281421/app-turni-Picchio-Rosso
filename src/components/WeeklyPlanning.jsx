@@ -161,20 +161,21 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       }
       setAvailabilitiesMap(aMap);
 
-      // 2. Carica turni pianificati dalla nuova tabella planned_shifts (con fallback su shifts se non ancora creata)
+      // 2. Carica turni pianificati dalla nuova tabella planned_shifts
       let { data: plannedData, error: plannedErr } = await supabase
         .from('planned_shifts')
         .select('*')
         .gte('data', weekStartStr)
         .lte('data', weekEndStr);
 
-      if (plannedErr && plannedErr.code === 'PGRST205') {
-        const { data: fallbackShifts } = await supabase
-          .from('shifts')
-          .select('*')
-          .gte('data', weekStartStr)
-          .lte('data', weekEndStr);
-        plannedData = fallbackShifts;
+      if (plannedErr) {
+        console.error('planned_shifts fetch error:', plannedErr);
+        if (plannedErr.code === 'PGRST205') {
+          setMessage({
+            type: 'error',
+            text: '⚠️ Tabella "planned_shifts" assente sul database Supabase Beta. Esegui il file SQL schema_planned_shifts.sql nell\'SQL Editor della Dashboard Supabase.'
+          });
+        }
       }
 
       const sMap = {};
@@ -303,7 +304,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
     });
   };
 
-  // Salva e Pubblica Planning Ufficiale (Salva nella tabella planned_shifts, SENZA modificare la tabella shifts dei turni lavorati mensili)
+  // Salva e Pubblica Planning Ufficiale (Salva ESCLUSIVAMENTE nella tabella planned_shifts, SENZA toccare la tabella shifts dei turni lavorati)
   const handlePublishPlanning = async () => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
@@ -317,22 +318,17 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         if (e.auth_user_id) empIdMap.set(e.auth_user_id, e.id);
       });
 
-      let targetTable = 'planned_shifts';
-      let { data: existingShifts, error: fetchErr } = await supabase
+      const { data: existingShifts, error: fetchErr } = await supabase
         .from('planned_shifts')
         .select('*')
         .gte('data', weekStartStr)
         .lte('data', weekEndStr);
 
-      if (fetchErr && fetchErr.code === 'PGRST205') {
-        console.warn('Tabella planned_shifts non trovata, fallback temporaneo su shifts');
-        targetTable = 'shifts';
-        const { data: fallbackExisting } = await supabase
-          .from('shifts')
-          .select('*')
-          .gte('data', weekStartStr)
-          .lte('data', weekEndStr);
-        existingShifts = fallbackExisting;
+      if (fetchErr) {
+        if (fetchErr.code === 'PGRST205') {
+          throw new Error('Tabella "planned_shifts" assente sul database. Esegui il file SQL schema_planned_shifts.sql nella dashboard Supabase -> SQL Editor.');
+        }
+        throw fetchErr;
       }
 
       const existingMap = new Map();
@@ -370,11 +366,13 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       }
 
       if (toDeleteIds.length > 0) {
-        await supabase.from(targetTable).delete().in('id', toDeleteIds);
+        const { error: delErr } = await supabase.from('planned_shifts').delete().in('id', toDeleteIds);
+        if (delErr) throw delErr;
       }
 
       if (toInsert.length > 0) {
-        await supabase.from(targetTable).insert(toInsert);
+        const { error: insErr } = await supabase.from('planned_shifts').insert(toInsert);
+        if (insErr) throw insErr;
       }
 
       try {
@@ -385,7 +383,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         });
       } catch (e) {}
 
-      setMessage({ type: 'success', text: `🎉 Planning pubblicato con successo! I turni dal ${weekDays[0].dayFormatted} al ${weekDays[6].dayFormatted} sono salvati ed ora visibili nel box "Turni Confermati".` });
+      setMessage({ type: 'success', text: `🎉 Planning pubblicato con successo! I turni dal ${weekDays[0].dayFormatted} al ${weekDays[6].dayFormatted} sono salvati nel Planning Settimanale ed ora visibili nel box "Turni Confermati".` });
       if (refreshMasterShifts) refreshMasterShifts();
       fetchWeekData();
     } catch (err) {
