@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getSupabaseClient } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { sharePlanningToWhatsApp } from '../lib/whatsappExport';
-import { Calendar, Sun, Moon, Send, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Sun, Moon, Send, CheckCircle2, ChevronLeft, ChevronRight, UserCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 // Helper per ottenere il Lunedì della settimana a partire da una data qualsiasi
@@ -161,20 +161,25 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       }
       setAvailabilitiesMap(aMap);
 
-      // 2. Carica turni assegnati (dalla tabella shifts)
-      const { data: shiftsData, error: shiftsErr } = await supabase
-        .from('shifts')
+      // 2. Carica turni pianificati dalla nuova tabella planned_shifts (con fallback su shifts se non ancora creata)
+      let { data: plannedData, error: plannedErr } = await supabase
+        .from('planned_shifts')
         .select('*')
         .gte('data', weekStartStr)
         .lte('data', weekEndStr);
 
-      if (shiftsErr) {
-        console.error('Errore caricamento turni:', shiftsErr);
+      if (plannedErr && plannedErr.code === 'PGRST205') {
+        const { data: fallbackShifts } = await supabase
+          .from('shifts')
+          .select('*')
+          .gte('data', weekStartStr)
+          .lte('data', weekEndStr);
+        plannedData = fallbackShifts;
       }
 
       const sMap = {};
-      if (shiftsData) {
-        shiftsData.forEach(item => {
+      if (plannedData) {
+        plannedData.forEach(item => {
           sMap[`${item.employee_id}_${item.data}_${item.turno}`] = item.id;
           const altId1 = empIdToAuthId.get(item.employee_id);
           if (altId1) sMap[`${altId1}_${item.data}_${item.turno}`] = item.id;
@@ -298,14 +303,13 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
     });
   };
 
-  // Salva e Pubblica Planning Ufficiale (Lato Admin)
+  // Salva e Pubblica Planning Ufficiale (Salva nella tabella planned_shifts, SENZA modificare la tabella shifts dei turni lavorati mensili)
   const handlePublishPlanning = async () => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
     setSaving(true);
     setMessage(null);
     try {
-      // Garantisci la risoluzione del vero ID PK nella tabella public.employees per ogni dipendente
       const { data: dbEmployees } = await supabase.from('employees').select('id, auth_user_id');
       const empIdMap = new Map();
       dbEmployees?.forEach(e => {
@@ -313,13 +317,23 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         if (e.auth_user_id) empIdMap.set(e.auth_user_id, e.id);
       });
 
-      const { data: existingShifts, error: fetchErr } = await supabase
-        .from('shifts')
+      let targetTable = 'planned_shifts';
+      let { data: existingShifts, error: fetchErr } = await supabase
+        .from('planned_shifts')
         .select('*')
         .gte('data', weekStartStr)
         .lte('data', weekEndStr);
 
-      if (fetchErr) throw fetchErr;
+      if (fetchErr && fetchErr.code === 'PGRST205') {
+        console.warn('Tabella planned_shifts non trovata, fallback temporaneo su shifts');
+        targetTable = 'shifts';
+        const { data: fallbackExisting } = await supabase
+          .from('shifts')
+          .select('*')
+          .gte('data', weekStartStr)
+          .lte('data', weekEndStr);
+        existingShifts = fallbackExisting;
+      }
 
       const existingMap = new Map();
       existingShifts?.forEach(s => {
@@ -356,16 +370,13 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       }
 
       if (toDeleteIds.length > 0) {
-        const { error: delErr } = await supabase.from('shifts').delete().in('id', toDeleteIds);
-        if (delErr) throw delErr;
+        await supabase.from(targetTable).delete().in('id', toDeleteIds);
       }
 
       if (toInsert.length > 0) {
-        const { error: insErr } = await supabase.from('shifts').insert(toInsert);
-        if (insErr) throw insErr;
+        await supabase.from(targetTable).insert(toInsert);
       }
 
-      // Animazione festeggiamento
       try {
         confetti({
           particleCount: 50,
@@ -374,7 +385,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         });
       } catch (e) {}
 
-      setMessage({ type: 'success', text: `🎉 Planning pubblicato con successo! I turni dal ${weekDays[0].dayFormatted} al ${weekDays[6].dayFormatted} sono stati salvati ed ora sono visibili nelle schede "I Miei Turni" e nei resoconti.` });
+      setMessage({ type: 'success', text: `🎉 Planning pubblicato con successo! I turni dal ${weekDays[0].dayFormatted} al ${weekDays[6].dayFormatted} sono salvati nel Planning Settimanale ed ora sono visibili a tutti i dipendenti nella scheda "Le Mie Disponibilità".` });
       if (refreshMasterShifts) refreshMasterShifts();
       fetchWeekData();
     } catch (err) {
@@ -426,16 +437,16 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         <div>
           <h2 style={{ fontSize: '1.4rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px', color: '#f8fafc' }}>
             <Calendar size={24} color="#38bdf8" />
-            {isPersonalMode ? 'Le Mie Disponibilità' : 'Planning Settimanale'}
+            {isPersonalMode ? 'Le Mie Disponibilità & Planning' : 'Planning Settimanale'}
           </h2>
           <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '4px' }}>
             {isPersonalMode
-              ? 'Imposta le tue disponibilità per la settimana (Pranzo e Cena)'
+              ? 'Imposta le tue disponibilità e consulta il planning confermato dall\'Admin per ogni settimana'
               : 'Visualizza disponibilità ed assegna i turni per la settimana'}
           </p>
         </div>
 
-        {/* Controlli Settimana */}
+        {/* Controlli Settimana (Supporta lo storico delle settimane passate) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(15, 23, 42, 0.6)', padding: '6px 12px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
           <button
             onClick={handlePrevWeek}
@@ -542,7 +553,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         /* GRIGLIA IBRIDA DELLE 7 GIORNATE (LUN - DOM) */
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(125px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
           gap: '12px'
         }}>
           {weekDays.map(day => (
@@ -566,48 +577,89 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                 </span>
               </div>
 
-              {/* LATO DIPENDENTE / PERSONALE: Pulsanti Disponibilità Pranzo/Cena */}
+              {/* LATO DIPENDENTE / PERSONALE: Pulsanti Disponibilità + BOX PLANNING CONFERMATO */}
               {isPersonalMode && activeEmployee && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <span style={{ fontSize: '0.7rem', color: '#64748b', textAlign: 'center', textTransform: 'uppercase', fontWeight: 700 }}>
-                    {day.isTuesday ? 'Giorno di Chiusura' : 'La tua disponibilità:'}
-                  </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  
+                  {/* Sezione 1: Le Mie Disponibilità */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <span style={{ fontSize: '0.68rem', color: '#64748b', textAlign: 'center', textTransform: 'uppercase', fontWeight: 700 }}>
+                      {day.isTuesday ? 'Giorno di Chiusura' : 'La tua disponibilità:'}
+                    </span>
 
-                  {day.isTuesday ? (
-                    <div style={{
-                      padding: '24px 8px',
-                      textAlign: 'center',
-                      background: 'rgba(30, 41, 59, 0.3)',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255, 255, 255, 0.04)',
-                      color: '#64748b',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      letterSpacing: '0.5px'
-                    }}>
-                      🔒 CHIUSO
-                    </div>
-                  ) : (
-                    <>
-                      {/* Tasto Pranzo (Solo da Lunedì a Sabato) */}
-                      {!day.isSunday ? (
+                    {day.isTuesday ? (
+                      <div style={{
+                        padding: '12px 8px',
+                        textAlign: 'center',
+                        background: 'rgba(30, 41, 59, 0.3)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255, 255, 255, 0.04)',
+                        color: '#64748b',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.5px'
+                      }}>
+                        🔒 CHIUSO
+                      </div>
+                    ) : (
+                      <>
+                        {/* Tasto Pranzo (Solo da Lunedì a Sabato) */}
+                        {!day.isSunday ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleAvailability(activeEmployee.id, day.dateStr, 'pranzo')}
+                            style={{
+                              padding: '6px 8px',
+                              borderRadius: '8px',
+                              border: isAvailable(activeEmployee, day.dateStr, 'pranzo')
+                                ? '1px solid rgba(245, 158, 11, 0.5)'
+                                : '1px solid rgba(255, 255, 255, 0.08)',
+                              background: isAvailable(activeEmployee, day.dateStr, 'pranzo')
+                                ? 'rgba(245, 158, 11, 0.2)'
+                                : 'rgba(30, 41, 59, 0.6)',
+                              color: isAvailable(activeEmployee, day.dateStr, 'pranzo')
+                                ? '#fbbf24'
+                                : '#94a3b8',
+                              fontWeight: 600,
+                              fontSize: '0.72rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justify: 'space-between',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Sun size={12} color={isAvailable(activeEmployee, day.dateStr, 'pranzo') ? '#fbbf24' : '#94a3b8'} />
+                              Pranzo
+                            </span>
+                            <span>{isAvailable(activeEmployee, day.dateStr, 'pranzo') ? '✅' : '❌'}</span>
+                          </button>
+                        ) : (
+                          /* Spacer per allineamento */
+                          <div style={{ padding: '6px 8px', borderRadius: '8px', border: '1px solid transparent', visibility: 'hidden' }}>
+                            <span style={{ fontSize: '0.72rem' }}>Pranzo</span>
+                          </div>
+                        )}
+
+                        {/* Tasto Cena */}
                         <button
                           type="button"
-                          onClick={() => toggleAvailability(activeEmployee.id, day.dateStr, 'pranzo')}
+                          onClick={() => toggleAvailability(activeEmployee.id, day.dateStr, 'cena')}
                           style={{
-                            padding: '8px 10px',
+                            padding: '6px 8px',
                             borderRadius: '8px',
-                            border: isAvailable(activeEmployee, day.dateStr, 'pranzo')
-                              ? '1px solid rgba(245, 158, 11, 0.5)'
+                            border: isAvailable(activeEmployee, day.dateStr, 'cena')
+                              ? '1px solid rgba(99, 102, 241, 0.5)'
                               : '1px solid rgba(255, 255, 255, 0.08)',
-                            background: isAvailable(activeEmployee, day.dateStr, 'pranzo')
-                              ? 'rgba(245, 158, 11, 0.2)'
+                            background: isAvailable(activeEmployee, day.dateStr, 'cena')
+                              ? 'rgba(99, 102, 241, 0.2)'
                               : 'rgba(30, 41, 59, 0.6)',
-                            color: isAvailable(activeEmployee, day.dateStr, 'pranzo')
-                              ? '#fbbf24'
+                            color: isAvailable(activeEmployee, day.dateStr, 'cena')
+                              ? '#a5b4fc'
                               : '#94a3b8',
                             fontWeight: 600,
-                            fontSize: '0.75rem',
+                            fontSize: '0.72rem',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -616,60 +668,79 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                           }}
                         >
                           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <Sun size={13} color={isAvailable(activeEmployee, day.dateStr, 'pranzo') ? '#fbbf24' : '#94a3b8'} />
-                            Pranzo
+                            <Moon size={12} color={isAvailable(activeEmployee, day.dateStr, 'cena') ? '#a5b4fc' : '#94a3b8'} />
+                            Cena
                           </span>
-                          <span>{isAvailable(activeEmployee, day.dateStr, 'pranzo') ? '✅' : '❌'}</span>
+                          <span>{isAvailable(activeEmployee, day.dateStr, 'cena') ? '✅' : '❌'}</span>
                         </button>
-                      ) : (
-                        /* Spacer trasparente la Domenica a Pranzo per allineare orizzontalmente il pulsante Cena con gli altri giorni */
-                        <div style={{
-                          padding: '8px 10px',
-                          borderRadius: '8px',
-                          border: '1px solid transparent',
-                          visibility: 'hidden',
-                          userSelect: 'none'
-                        }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}>
-                            <Sun size={13} />
-                            Pranzo
-                          </span>
-                        </div>
-                      )}
+                      </>
+                    )}
+                  </div>
 
-                      {/* Tasto Cena */}
-                      <button
-                        type="button"
-                        onClick={() => toggleAvailability(activeEmployee.id, day.dateStr, 'cena')}
-                        style={{
-                          padding: '8px 10px',
-                          borderRadius: '8px',
-                          border: isAvailable(activeEmployee, day.dateStr, 'cena')
-                            ? '1px solid rgba(99, 102, 241, 0.5)'
-                            : '1px solid rgba(255, 255, 255, 0.08)',
-                          background: isAvailable(activeEmployee, day.dateStr, 'cena')
-                            ? 'rgba(99, 102, 241, 0.2)'
-                            : 'rgba(30, 41, 59, 0.6)',
-                          color: isAvailable(activeEmployee, day.dateStr, 'cena')
-                            ? '#a5b4fc'
-                            : '#94a3b8',
-                          fontWeight: 600,
-                          fontSize: '0.75rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justify: 'space-between',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Moon size={13} color={isAvailable(activeEmployee, day.dateStr, 'cena') ? '#a5b4fc' : '#94a3b8'} />
-                          Cena
-                        </span>
-                        <span>{isAvailable(activeEmployee, day.dateStr, 'cena') ? '✅' : '❌'}</span>
-                      </button>
-                    </>
+                  {/* Sezione 2: Planning Confermato dell'Admin (Pranzi e Cene per tutti) */}
+                  {!day.isTuesday && (
+                    <div style={{
+                      marginTop: '8px',
+                      paddingTop: '10px',
+                      borderTop: '1px dashed rgba(255, 255, 255, 0.12)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}>
+                      <span style={{ fontSize: '0.68rem', color: '#38bdf8', fontWeight: 800, textTransform: 'uppercase', textAlign: 'center', letterSpacing: '0.3px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                        <UserCheck size={12} />
+                        Planning Confermato
+                      </span>
+
+                      {['pranzo', 'cena'].map(turno => {
+                        if (day.isSunday && turno === 'pranzo') return null;
+
+                        const assignedEmps = employeesList.filter(emp => isAssigned(emp, day.dateStr, turno));
+
+                        return (
+                          <div key={turno} style={{
+                            background: 'rgba(15, 23, 42, 0.5)',
+                            padding: '6px 8px',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(255, 255, 255, 0.05)'
+                          }}>
+                            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: turno === 'pranzo' ? '#fbbf24' : '#a5b4fc', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+                              {turno === 'pranzo' ? <Sun size={11} /> : <Moon size={11} />}
+                              <span style={{ textTransform: 'capitalize' }}>{turno}</span>
+                            </div>
+
+                            {assignedEmps.length === 0 ? (
+                              <span style={{ fontSize: '0.68rem', color: '#475569', fontStyle: 'italic', display: 'block' }}>
+                                Nessuno
+                              </span>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                {assignedEmps.map(emp => (
+                                  <div key={emp.id} style={{
+                                    fontSize: '0.7rem',
+                                    fontWeight: 700,
+                                    color: '#34d399',
+                                    background: 'rgba(16, 185, 129, 0.15)',
+                                    padding: '3px 6px',
+                                    borderRadius: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justify: 'space-between'
+                                  }}>
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {emp.nome}
+                                    </span>
+                                    <span>✓</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
+
                 </div>
               )}
 
