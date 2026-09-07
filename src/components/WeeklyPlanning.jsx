@@ -72,7 +72,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
 
   useEffect(() => {
     fetchWeekData();
-  }, [currentMonday]);
+  }, [currentMonday, mode]);
 
   const fetchWeekData = async () => {
     const supabase = getSupabaseClient();
@@ -80,25 +80,34 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
     setLoading(true);
     setMessage(null);
     try {
-      // 0. Carica elenco dipendenti se non fornito via prop
-      let activeEmployees = propEmployeesList;
-      if (!activeEmployees || activeEmployees.length === 0) {
-        const { data: empData } = await supabase
-          .from('employees')
-          .select('*')
-          .order('nome');
-        if (empData) {
-          activeEmployees = empData;
-          setEmployeesList(empData);
-        }
+      // 0. Carica sempre l'elenco completo dipendenti dal DB
+      const { data: empData, error: empErr } = await supabase
+        .from('employees')
+        .select('*')
+        .order('nome');
+
+      if (empErr) {
+        console.error('Errore caricamento dipendenti:', empErr);
       }
 
-      // 1. Carica disponibilità
-      const { data: availData } = await supabase
+      let list = empData || [];
+      // Se l'utente attivo non compare nella lista (es. per latenze RLS), aggiungilo
+      if (activeEmployee && !list.some(e => e.id === activeEmployee.id)) {
+        list = [activeEmployee, ...list];
+      }
+
+      setEmployeesList(list);
+
+      // 1. Carica disponibilità per l'intervallo di date
+      const { data: availData, error: availErr } = await supabase
         .from('availabilities')
         .select('*')
         .gte('data', weekStartStr)
         .lte('data', weekEndStr);
+
+      if (availErr) {
+        console.error('Errore caricamento disponibilità:', availErr);
+      }
 
       const aMap = {};
       if (availData) {
@@ -111,11 +120,15 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       setAvailabilitiesMap(aMap);
 
       // 2. Carica turni assegnati (dalla tabella shifts)
-      const { data: shiftsData } = await supabase
+      const { data: shiftsData, error: shiftsErr } = await supabase
         .from('shifts')
         .select('*')
         .gte('data', weekStartStr)
         .lte('data', weekEndStr);
+
+      if (shiftsErr) {
+        console.error('Errore caricamento turni:', shiftsErr);
+      }
 
       const sMap = {};
       if (shiftsData) {
