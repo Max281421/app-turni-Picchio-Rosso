@@ -42,11 +42,20 @@ export function generateWhatsAppPlanningText(weekDaysArray, employeesList) {
   });
 
   for (const dayObj of reorderedDays) {
-    const dayOfWeek = dayObj.date.getDay(); // 0 = DOM, 1 = LUN, etc.
+    const dayOfWeek = dayObj.date.getDay(); // 0 = DOM, 1 = LUN, 2 = MAR, etc.
+    
+    // Salta Martedì (Chiusura settimanale)
+    if (dayOfWeek === 2) continue;
+
     const dayCode = DAY_NAMES_SHORT[dayOfWeek];
 
-    // Raccogliamo tutti gli employee_id unici che lavorano in quel giorno (sia pranzo che cena)
-    const assignedIds = new Set(dayObj.assignedShifts.map(s => s.employee_id));
+    // Raccogliamo gli employee_id che lavorano (escludendo pranzo la domenica)
+    const validShifts = dayObj.assignedShifts.filter(s => {
+      if (dayOfWeek === 0 && s.turno === 'pranzo') return false;
+      return true;
+    });
+
+    const assignedIds = new Set(validShifts.map(s => s.employee_id));
 
     if (assignedIds.size > 0) {
       const names = Array.from(assignedIds)

@@ -50,8 +50,8 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
   // Mappa dei turni pianificati/assegnati: key `${employee_id}_${dateStr}_${turno}` -> boolean
   const [assignedShiftsMap, setAssignedShiftsMap] = useState({});
 
-  // Calcola le 7 date della settimana corrente (da Lun a Dom)
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
+  // Calcola le date della settimana corrente (Martedì escluso per chiusura)
+  const fullWeekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(currentMonday);
     d.setDate(d.getDate() + i);
     return {
@@ -59,8 +59,12 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
       dateStr: formatDateLocal(d),
       dayName: DAY_NAMES[i],
       dayFormatted: d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }),
+      isSunday: d.getDay() === 0,
+      isTuesday: d.getDay() === 2,
     };
   });
+
+  const weekDays = fullWeekDays.filter(day => !day.isTuesday);
 
   const weekStartStr = weekDays[0].dateStr;
   const weekEndStr = weekDays[6].dateStr;
@@ -430,37 +434,39 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
                     La tua disponibilità:
                   </span>
 
-                  {/* Tasto Pranzo */}
-                  <button
-                    type="button"
-                    onClick={() => toggleAvailability(activeEmployee.id, day.dateStr, 'pranzo')}
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      border: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`]
-                        ? '1px solid rgba(245, 158, 11, 0.5)'
-                        : '1px solid rgba(255, 255, 255, 0.08)',
-                      background: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`]
-                        ? 'rgba(245, 158, 11, 0.2)'
-                        : 'rgba(30, 41, 59, 0.6)',
-                      color: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`]
-                        ? '#fbbf24'
-                        : '#94a3b8',
-                      fontWeight: 600,
-                      fontSize: '0.75rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justify: 'space-between',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Sun size={13} color={availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`] ? '#fbbf24' : '#94a3b8'} />
-                      Pranzo
-                    </span>
-                    <span>{availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`] ? '✅' : '❌'}</span>
-                  </button>
+                  {/* Tasto Pranzo (Solo da Lunedì a Sabato) */}
+                  {!day.isSunday && (
+                    <button
+                      type="button"
+                      onClick={() => toggleAvailability(activeEmployee.id, day.dateStr, 'pranzo')}
+                      style={{
+                        padding: '8px 10px',
+                        borderRadius: '8px',
+                        border: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`]
+                          ? '1px solid rgba(245, 158, 11, 0.5)'
+                          : '1px solid rgba(255, 255, 255, 0.08)',
+                        background: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`]
+                          ? 'rgba(245, 158, 11, 0.2)'
+                          : 'rgba(30, 41, 59, 0.6)',
+                        color: availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`]
+                          ? '#fbbf24'
+                          : '#94a3b8',
+                        fontWeight: 600,
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justify: 'space-between',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Sun size={13} color={availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`] ? '#fbbf24' : '#94a3b8'} />
+                        Pranzo
+                      </span>
+                      <span>{availabilitiesMap[`${activeEmployee.id}_${day.dateStr}_pranzo`] ? '✅' : '❌'}</span>
+                    </button>
+                  )}
 
                   {/* Tasto Cena */}
                   <button
@@ -499,7 +505,7 @@ export default function WeeklyPlanning({ employeesList: propEmployeesList, refre
               {/* LATO ADMIN: Selettore Dipendenti per Pranzo e Cena */}
               {isAdmin && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {['pranzo', 'cena'].map(turno => (
+                  {['pranzo', 'cena'].filter(t => !(day.isSunday && t === 'pranzo')).map(turno => (
                     <div key={turno} style={{
                       background: 'rgba(30, 41, 59, 0.5)',
                       padding: '8px',
