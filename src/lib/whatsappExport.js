@@ -78,14 +78,14 @@ export function generateWhatsAppPlanningText(weekDaysArray, employeesList) {
     }
   }
 
-  return lines.join('\n');
+  return lines.join('\n').trim();
 }
 
 /**
  * Apre WhatsApp (Web su desktop, App nativa su mobile) con il testo pre-compilato
  */
 export function sharePlanningToWhatsApp(weekDaysArray, employeesList) {
-  const text = generateWhatsAppPlanningText(weekDaysArray, employeesList);
+  const text = generateWhatsAppPlanningText(weekDaysArray, employeesList).trim();
   const encodedText = encodeURIComponent(text);
   const url = `https://api.whatsapp.com/send?text=${encodedText}`;
   window.open(url, '_blank');
