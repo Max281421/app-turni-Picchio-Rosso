@@ -6,6 +6,7 @@ import EmployeeDashboard from './pages/EmployeeDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import SetupConfig from './pages/SetupConfig';
 import PullToRefresh from './components/PullToRefresh';
+import WeeklyPlanning from './components/WeeklyPlanning';
 import { Calendar, Shield, Users, RefreshCw } from 'lucide-react';
 
 class ErrorBoundary extends Component {
@@ -55,7 +56,7 @@ class ErrorBoundary extends Component {
 function MainContent() {
   const { user, employee, loading, isConfigured } = useAuth();
   const [showSetup, setShowSetup] = useState(false);
-  const [adminActiveTab, setAdminActiveTab] = useState('my'); // 'my' | 'all'
+  const [adminActiveTab, setAdminActiveTab] = useState('my'); // 'my' | 'all' | 'planning'
 
   if (loading) {
     return (
@@ -93,8 +94,10 @@ function MainContent() {
         setAdminActiveTab={setAdminActiveTab}
       />
 
-      <main>
-        {isAdmin ? (
+      <main style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 16px' }}>
+        {adminActiveTab === 'planning' ? (
+          <WeeklyPlanning />
+        ) : isAdmin ? (
           adminActiveTab === 'all' ? <AdminDashboard /> : <EmployeeDashboard />
         ) : (
           <EmployeeDashboard />
