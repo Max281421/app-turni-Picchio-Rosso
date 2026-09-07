@@ -3,6 +3,7 @@ import { getSupabaseClient } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { sharePlanningToWhatsApp } from '../lib/whatsappExport';
 import { Calendar, Sun, Moon, Send, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 // Helper per ottenere il Lunedì della settimana a partire da una data qualsiasi
 function getMonday(d) {
@@ -304,6 +305,14 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
     setSaving(true);
     setMessage(null);
     try {
+      // Garantisci la risoluzione del vero ID PK nella tabella public.employees per ogni dipendente
+      const { data: dbEmployees } = await supabase.from('employees').select('id, auth_user_id');
+      const empIdMap = new Map();
+      dbEmployees?.forEach(e => {
+        if (e.id) empIdMap.set(e.id, e.id);
+        if (e.auth_user_id) empIdMap.set(e.auth_user_id, e.id);
+      });
+
       const { data: existingShifts, error: fetchErr } = await supabase
         .from('shifts')
         .select('*')
@@ -323,15 +332,19 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       for (const day of weekDays) {
         if (day.isTuesday) continue;
         for (const emp of employeesList) {
+          const targetEmpDbId = empIdMap.get(emp.id) || empIdMap.get(emp.auth_user_id) || emp.id;
+
           for (const turno of ['pranzo', 'cena']) {
             if (day.isSunday && turno === 'pranzo') continue;
 
             const isAssignedShift = isAssigned(emp, day.dateStr, turno);
-            const existingId = existingMap.get(`${emp.id}_${day.dateStr}_${turno}`) || (emp.auth_user_id ? existingMap.get(`${emp.auth_user_id}_${day.dateStr}_${turno}`) : null);
+            const existingId = existingMap.get(`${targetEmpDbId}_${day.dateStr}_${turno}`) ||
+                               existingMap.get(`${emp.id}_${day.dateStr}_${turno}`) ||
+                               (emp.auth_user_id ? existingMap.get(`${emp.auth_user_id}_${day.dateStr}_${turno}`) : null);
 
             if (isAssignedShift && !existingId) {
               toInsert.push({
-                employee_id: emp.id,
+                employee_id: targetEmpDbId,
                 data: day.dateStr,
                 turno: turno,
               });
@@ -352,12 +365,21 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         if (insErr) throw insErr;
       }
 
-      setMessage({ type: 'success', text: '✅ Planning pubblicato con successo su database e turni ufficiali!' });
+      // Animazione festeggiamento
+      try {
+        confetti({
+          particleCount: 50,
+          spread: 70,
+          origin: { y: 0.7 }
+        });
+      } catch (e) {}
+
+      setMessage({ type: 'success', text: `🎉 Planning pubblicato con successo! I turni dal ${weekDays[0].dayFormatted} al ${weekDays[6].dayFormatted} sono stati salvati ed ora sono visibili nelle schede "I Miei Turni" e nei resoconti.` });
       if (refreshMasterShifts) refreshMasterShifts();
       fetchWeekData();
     } catch (err) {
       console.error('Errore pubblicazione planning:', err);
-      setMessage({ type: 'error', text: '❌ Errore durante la pubblicazione del planning.' });
+      setMessage({ type: 'error', text: '❌ Errore durante la pubblicazione del planning: ' + (err.message || 'Verifica il database.') });
     } finally {
       setSaving(false);
     }
