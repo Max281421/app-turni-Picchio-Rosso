@@ -8,7 +8,7 @@ import { exportSummaryToPDF, exportGridToPDF } from '../lib/pdfExport';
 import { FileSpreadsheet, FileText, Users, Sun, Moon, Calendar as CalendarIcon, Search, UserCheck, ChevronDown, ChevronUp, Plus, Edit2 } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const { updateEmployeeRole, updateEmployeeName, deleteAccount } = useAuth();
+  const { updateEmployeeRole, updateEmployeeName, updateEmployeeMansioni, deleteAccount } = useAuth();
   const today = new Date();
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
@@ -289,9 +289,17 @@ export default function AdminDashboard() {
                       <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#f8fafc' }}>
                         {emp.nome || 'Senza nome'} {emp.alias ? `(${emp.alias})` : ''}
                       </h4>
-                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                        {emp.ruolo === 'admin' ? 'Amministratore' : 'Dipendente'}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                          {emp.ruolo === 'admin' ? 'Amministratore' : 'Dipendente'}
+                        </span>
+                        <span style={{ color: '#475569' }}>•</span>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          {(!emp.mansioni || emp.mansioni.includes('cassa')) && <span style={{ fontSize: '0.75rem' }} title="Cassa">💵</span>}
+                          {(!emp.mansioni || emp.mansioni.includes('fattorino')) && <span style={{ fontSize: '0.75rem' }} title="Fattorino">🛵</span>}
+                          {(!emp.mansioni || emp.mansioni.includes('pizzeria')) && <span style={{ fontSize: '0.75rem' }} title="Pizzeria">🍕</span>}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -320,6 +328,27 @@ export default function AdminDashboard() {
                       </h5>
 
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={async () => {
+                            const current = emp.mansioni || ['cassa', 'fattorino', 'pizzeria'];
+                            const wantsCassa = confirm(`Ruoli operativi attuali di ${emp.nome}:\n${current.join(', ')}\n\nAbilitare ruolo CASSA (💵)?`);
+                            const wantsFattorino = confirm(`Abilitare ruolo FATTORINO (🛵)?`);
+                            const wantsPizzeria = confirm(`Abilitare ruolo PIZZERIA (🍕)?`);
+                            const newMans = [];
+                            if (wantsCassa) newMans.push('cassa');
+                            if (wantsFattorino) newMans.push('fattorino');
+                            if (wantsPizzeria) newMans.push('pizzeria');
+                            if (newMans.length === 0) newMans.push('pizzeria');
+                            
+                            await updateEmployeeMansioni(emp.id, newMans);
+                            await fetchAdminData();
+                          }}
+                          className="btn-secondary"
+                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                        >
+                          Modifica Settori
+                        </button>
+
                         <button
                           onClick={async () => {
                             const newRole = emp.ruolo === 'admin' ? 'dipendente' : 'admin';

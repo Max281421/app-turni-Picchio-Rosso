@@ -28,9 +28,23 @@ export function getShortFirstName(fullName) {
  * @param {Array} employeesList - Elenco completo dipendenti [{ id, nome }]
  * @returns {string} Il testo formattato pronto per l'invio
  */
-export function generateWhatsAppPlanningText(weekDaysArray, employeesList) {
+export function generateWhatsAppPlanningText(weekDaysArray, employeesList, targetSector = null) {
+  // Se è specificato un settore (es. 'fattorino'), filtra i dipendenti abilitati a quel settore
+  const filteredEmps = targetSector
+    ? employeesList.filter(e => {
+        if (e.mansioni && Array.isArray(e.mansioni)) {
+          return e.mansioni.includes(targetSector);
+        }
+        if (e.mansione) return e.mansione === targetSector;
+        return true; // Default fallback
+      })
+    : employeesList;
+
+  const validEmpIds = new Set(filteredEmps.map(e => e.id));
+  const validAuthIds = new Set(filteredEmps.map(e => e.auth_user_id).filter(Boolean));
+
   const employeeMap = new Map();
-  employeesList.forEach(e => {
+  filteredEmps.forEach(e => {
     const shortName = (e.alias && e.alias.trim()) ? e.alias.trim().toUpperCase() : getShortFirstName(e.nome);
     if (e.id) employeeMap.set(e.id, shortName);
     if (e.auth_user_id) employeeMap.set(e.auth_user_id, shortName);
@@ -38,7 +52,6 @@ export function generateWhatsAppPlanningText(weekDaysArray, employeesList) {
 
   const lines = [];
 
-  // Ordiniamo dal Lunedì (index 1) alla Domenica (index 0)
   // Reorder days so Monday comes first
   const reorderedDays = [...weekDaysArray].sort((a, b) => {
     const dayA = a.date.getDay() === 0 ? 7 : a.date.getDay();
@@ -47,9 +60,8 @@ export function generateWhatsAppPlanningText(weekDaysArray, employeesList) {
   });
 
   // 1. Considera ESCLUSIVAMENTE il turno di CENA per l'esportazione WhatsApp
-  // Controlla se l'Admin ha assegnato ufficialmente almeno un turno di CENA nella settimana
   const hasAnyAssignedCena = reorderedDays.some(
-    dayObj => dayObj.assignedShifts && dayObj.assignedShifts.some(s => s.turno === 'cena')
+    dayObj => dayObj.assignedShifts && dayObj.assignedShifts.some(s => s.turno === 'cena' && (validEmpIds.has(s.employee_id) || validAuthIds.has(s.employee_id)))
   );
 
   for (const dayObj of reorderedDays) {
@@ -60,14 +72,11 @@ export function generateWhatsAppPlanningText(weekDaysArray, employeesList) {
 
     const dayCode = DAY_NAMES_SHORT[dayOfWeek];
 
-    // Filtra mantenendo SOLO i turni di CENA (i pranzi vengono ignorati nel messaggio)
-    const assignedCena = (dayObj.assignedShifts || []).filter(s => s.turno === 'cena');
-    const availableCena = (dayObj.availableShifts || []).filter(s => s.turno === 'cena');
+    // Filtra mantenendo SOLO i turni di CENA dei dipendenti del settore
+    const assignedCena = (dayObj.assignedShifts || []).filter(s => s.turno === 'cena' && (validEmpIds.has(s.employee_id) || validAuthIds.has(s.employee_id)));
+    const availableCena = (dayObj.availableShifts || []).filter(s => s.turno === 'cena' && (validEmpIds.has(s.employee_id) || validAuthIds.has(s.employee_id)));
 
-    // Se c'è almeno un turno di CENA assegnato nell'intera settimana, usa ESCLUSIVAMENTE le cene assegnate.
-    // Se l'admin non ha ancora assegnato alcuna cena nella settimana, usa le cene disponibili.
     const targetCenaShifts = hasAnyAssignedCena ? assignedCena : availableCena;
-
     const targetIds = new Set(targetCenaShifts.map(s => s.employee_id));
 
     if (targetIds.size > 0) {
@@ -87,8 +96,8 @@ export function generateWhatsAppPlanningText(weekDaysArray, employeesList) {
 /**
  * Apre WhatsApp (Web su desktop, App nativa su mobile) con il testo pre-compilato
  */
-export function sharePlanningToWhatsApp(weekDaysArray, employeesList) {
-  const text = generateWhatsAppPlanningText(weekDaysArray, employeesList).trim();
+export function sharePlanningToWhatsApp(weekDaysArray, employeesList, targetSector = null) {
+  const text = generateWhatsAppPlanningText(weekDaysArray, employeesList, targetSector).trim();
   const encodedText = encodeURIComponent(text);
   const url = `https://api.whatsapp.com/send?text=${encodedText}`;
   window.open(url, '_blank');

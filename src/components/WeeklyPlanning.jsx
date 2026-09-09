@@ -25,6 +25,12 @@ function formatDateLocal(date) {
 
 const DAY_NAMES = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
 
+const SECTORS = [
+  { id: 'cassa', label: 'Cassa', icon: '💵', color: '#10b981' },
+  { id: 'fattorino', label: 'Fattorino', icon: '🛵', color: '#38bdf8' },
+  { id: 'pizzeria', label: 'Pizzeria', icon: '🍕', color: '#f59e0b' }
+];
+
 export default function WeeklyPlanning({ mode = 'planning', employeesList: propEmployeesList, refreshMasterShifts }) {
   const { currentEmployee, employee, isAdmin: contextIsAdmin } = useAuth();
   const activeEmployee = currentEmployee || employee;
@@ -47,10 +53,13 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
 
+  // Settore attivo per il planning Admin (cassa, fattorino, pizzeria)
+  const [activeSector, setActiveSector] = useState('cassa');
+
   // Mappa delle disponibilità: key `${employee_id}_${dateStr}_${turno}` -> boolean
   const [availabilitiesMap, setAvailabilitiesMap] = useState({});
 
-  // Mappa dei turni pianificati/assegnati: key `${employee_id}_${dateStr}_${turno}` -> boolean
+  // Mappa dei turni pianificati/assegnati: key `${employee_id}_${dateStr}_${turno}_${mansione}` -> id/boolean
   const [assignedShiftsMap, setAssignedShiftsMap] = useState({});
 
   // Calcola le 7 date della settimana corrente (incluso Martedì)
@@ -85,15 +94,31 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
     return !!availabilitiesMap[`${empOrId}_${dateStr}_${turno}`];
   };
 
-  const isAssigned = (empOrId, dateStr, turno) => {
+  const isAssigned = (empOrId, dateStr, turno, targetSector = null) => {
     if (!empOrId) return false;
-    if (typeof empOrId === 'object') {
+    const empId = typeof empOrId === 'object' ? empOrId.id : empOrId;
+    const authId = typeof empOrId === 'object' ? empOrId.auth_user_id : null;
+
+    if (targetSector) {
       return !!(
-        (empOrId.id && assignedShiftsMap[`${empOrId.id}_${dateStr}_${turno}`]) ||
-        (empOrId.auth_user_id && assignedShiftsMap[`${empOrId.auth_user_id}_${dateStr}_${turno}`])
+        (empId && assignedShiftsMap[`${empId}_${dateStr}_${turno}_${targetSector}`]) ||
+        (authId && assignedShiftsMap[`${authId}_${dateStr}_${turno}_${targetSector}`])
       );
     }
-    return !!assignedShiftsMap[`${empOrId}_${dateStr}_${turno}`];
+    return !!(
+      (empId && (
+        assignedShiftsMap[`${empId}_${dateStr}_${turno}_cassa`] ||
+        assignedShiftsMap[`${empId}_${dateStr}_${turno}_fattorino`] ||
+        assignedShiftsMap[`${empId}_${dateStr}_${turno}_pizzeria`] ||
+        assignedShiftsMap[`${empId}_${dateStr}_${turno}`]
+      )) ||
+      (authId && (
+        assignedShiftsMap[`${authId}_${dateStr}_${turno}_cassa`] ||
+        assignedShiftsMap[`${authId}_${dateStr}_${turno}_fattorino`] ||
+        assignedShiftsMap[`${authId}_${dateStr}_${turno}_pizzeria`] ||
+        assignedShiftsMap[`${authId}_${dateStr}_${turno}`]
+      ))
+    );
   };
 
   const fetchWeekData = async () => {
@@ -181,11 +206,19 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       const sMap = {};
       if (plannedData) {
         plannedData.forEach(item => {
+          const mans = item.mansione || 'pizzeria';
+          sMap[`${item.employee_id}_${item.data}_${item.turno}_${mans}`] = item.id;
           sMap[`${item.employee_id}_${item.data}_${item.turno}`] = item.id;
           const altId1 = empIdToAuthId.get(item.employee_id);
-          if (altId1) sMap[`${altId1}_${item.data}_${item.turno}`] = item.id;
+          if (altId1) {
+            sMap[`${altId1}_${item.data}_${item.turno}_${mans}`] = item.id;
+            sMap[`${altId1}_${item.data}_${item.turno}`] = item.id;
+          }
           const altId2 = authIdToEmpId.get(item.employee_id);
-          if (altId2) sMap[`${altId2}_${item.data}_${item.turno}`] = item.id;
+          if (altId2) {
+            sMap[`${altId2}_${item.data}_${item.turno}_${mans}`] = item.id;
+            sMap[`${altId2}_${item.data}_${item.turno}`] = item.id;
+          }
         });
       }
       setAssignedShiftsMap(sMap);
@@ -280,15 +313,15 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
     }
   };
 
-  // Toggle Assegnazione Turno (Lato Admin)
-  const toggleShiftAssignment = (emp, dateStr, turno) => {
+  // Toggle Assegnazione Turno (Lato Admin per il settore attivo)
+  const toggleShiftAssignment = (emp, dateStr, turno, targetSector = activeSector) => {
     const empId = emp.id;
     const authId = emp.auth_user_id;
 
-    const key1 = `${empId}_${dateStr}_${turno}`;
-    const key2 = authId ? `${authId}_${dateStr}_${turno}` : null;
+    const key1 = `${empId}_${dateStr}_${turno}_${targetSector}`;
+    const key2 = authId ? `${authId}_${dateStr}_${turno}_${targetSector}` : null;
 
-    const currentValue = isAssigned(emp, dateStr, turno);
+    const currentValue = isAssigned(emp, dateStr, turno, targetSector);
     const newValue = !currentValue;
 
     setAssignedShiftsMap(prev => {
@@ -304,25 +337,33 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
     });
   };
 
-  // Salva e Pubblica Planning Ufficiale (Salva ESCLUSIVAMENTE nella tabella planned_shifts, SENZA toccare la tabella shifts dei turni lavorati)
-  const handlePublishPlanning = async () => {
+  // Salva e Pubblica Planning Ufficiale per il settore target (Salva ESCLUSIVAMENTE nella tabella planned_shifts)
+  const handlePublishPlanning = async (targetSector = activeSector) => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
     setSaving(true);
     setMessage(null);
     try {
-      const { data: dbEmployees } = await supabase.from('employees').select('id, auth_user_id');
+      const sectorObj = SECTORS.find(s => s.id === targetSector) || SECTORS[0];
+      const { data: dbEmployees } = await supabase.from('employees').select('id, auth_user_id, mansioni');
       const empIdMap = new Map();
       dbEmployees?.forEach(e => {
         if (e.id) empIdMap.set(e.id, e.id);
         if (e.auth_user_id) empIdMap.set(e.auth_user_id, e.id);
       });
 
+      // Filtra i dipendenti abilitati a questo settore
+      const sectorEmployees = employeesList.filter(emp => {
+        if (emp.mansioni && Array.isArray(emp.mansioni)) return emp.mansioni.includes(targetSector);
+        return true;
+      });
+
       const { data: existingShifts, error: fetchErr } = await supabase
         .from('planned_shifts')
         .select('*')
         .gte('data', weekStartStr)
-        .lte('data', weekEndStr);
+        .lte('data', weekEndStr)
+        .eq('mansione', targetSector);
 
       if (fetchErr) {
         if (fetchErr.code === 'PGRST205') {
@@ -341,13 +382,13 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
 
       for (const day of weekDays) {
         if (day.isTuesday) continue;
-        for (const emp of employeesList) {
+        for (const emp of sectorEmployees) {
           const targetEmpDbId = empIdMap.get(emp.id) || empIdMap.get(emp.auth_user_id) || emp.id;
 
           for (const turno of ['pranzo', 'cena']) {
             if (day.isSunday && turno === 'pranzo') continue;
 
-            const isAssignedShift = isAssigned(emp, day.dateStr, turno);
+            const isAssignedShift = isAssigned(emp, day.dateStr, turno, targetSector);
             const existingId = existingMap.get(`${targetEmpDbId}_${day.dateStr}_${turno}`) ||
                                existingMap.get(`${emp.id}_${day.dateStr}_${turno}`) ||
                                (emp.auth_user_id ? existingMap.get(`${emp.auth_user_id}_${day.dateStr}_${turno}`) : null);
@@ -357,6 +398,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                 employee_id: targetEmpDbId,
                 data: day.dateStr,
                 turno: turno,
+                mansione: targetSector,
               });
             } else if (!isAssignedShift && existingId) {
               toDeleteIds.push(existingId);
@@ -365,11 +407,10 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         }
       }
 
-      // Deduplica gli inserimenti per prevenire errori di Unique Constraint
       const toInsert = [];
       const seenKeys = new Set();
       for (const item of rawInsert) {
-        const key = `${item.employee_id}_${item.data}_${item.turno}`;
+        const key = `${item.employee_id}_${item.data}_${item.turno}_${item.mansione}`;
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
           toInsert.push(item);
@@ -406,19 +447,19 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         });
       } catch (e) {}
 
-      setMessage({ type: 'success', text: `🎉 Planning pubblicato con successo! I turni dal ${weekDays[0].dayFormatted} al ${weekDays[6].dayFormatted} sono salvati nel Planning Settimanale ed ora visibili nel box "Turni Confermati".` });
+      setMessage({ type: 'success', text: `🎉 Planning ${sectorObj.icon} ${sectorObj.label} pubblicato con successo!` });
       if (refreshMasterShifts) refreshMasterShifts();
       fetchWeekData();
     } catch (err) {
       console.error('Errore pubblicazione planning:', err);
-      setMessage({ type: 'error', text: '❌ Errore durante la pubblicazione del planning: ' + (err.message || 'Verifica il database.') });
+      setMessage({ type: 'error', text: '❌ Errore durante la pubblicazione: ' + (err.message || 'Verifica il database.') });
     } finally {
       setSaving(false);
     }
   };
 
-  // Condivisione WhatsApp
-  const handleWhatsAppShare = () => {
+  // Condivisione WhatsApp per il settore target
+  const handleWhatsAppShare = (targetSector = activeSector) => {
     const weekDaysArray = weekDays.map(day => {
       const assignedShifts = [];
       const availableShifts = [];
@@ -431,8 +472,8 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         for (const turno of ['pranzo', 'cena']) {
           if (day.isSunday && turno === 'pranzo') continue;
 
-          if (isAssigned(emp, day.dateStr, turno)) {
-            assignedShifts.push({ employee_id: emp.id, turno });
+          if (isAssigned(emp, day.dateStr, turno, targetSector)) {
+            assignedShifts.push({ employee_id: emp.id, turno, mansione: targetSector });
           }
           if (isAvailable(emp, day.dateStr, turno)) {
             availableShifts.push({ employee_id: emp.id, turno });
@@ -447,13 +488,21 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       };
     });
 
-    sharePlanningToWhatsApp(weekDaysArray, employeesList);
+    sharePlanningToWhatsApp(weekDaysArray, employeesList, targetSector);
   };
+
+  const currentSectorObj = SECTORS.find(s => s.id === activeSector) || SECTORS[0];
+
+  // Dipendenti abilitati per il settore attualmente selezionato
+  const activeSectorEmployees = employeesList.filter(emp => {
+    if (emp.mansioni && Array.isArray(emp.mansioni)) return emp.mansioni.includes(activeSector);
+    return true;
+  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '32px' }}>
       
-      {/* BOX 1: INSERIMENTO DISPONIBILITÀ (O PLANNING ADMIN COMPLETO) */}
+      {/* BOX 1: INSERIMENTO DISPONIBILITÀ (O PLANNING ADMIN COMPLETO PER SETTORE) */}
       <div className="glass-card" style={{ padding: '24px' }}>
         
         {/* Header Settimana e Titolo */}
@@ -466,11 +515,11 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
             <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '4px' }}>
               {isPersonalMode
                 ? 'Imposta le tue disponibilità per la settimana (Pranzo e Cena)'
-                : 'Visualizza disponibilità ed assegna i turni per la settimana'}
+                : 'Visualizza disponibilità ed assegna i turni per i 3 settori della pizzeria'}
             </p>
           </div>
 
-          {/* Controlli Settimana (Sincronizza entrambi i box) */}
+          {/* Controlli Settimana */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(15, 23, 42, 0.6)', padding: '6px 12px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
             <button
               onClick={handlePrevWeek}
@@ -512,6 +561,52 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
           </div>
         </div>
 
+        {/* Tab di selezione Settore (Solo in modalità Planning Admin) */}
+        {!isPersonalMode && isAdmin && (
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '4px' }}>
+            {SECTORS.map(sec => {
+              const isActive = activeSector === sec.id;
+              const countEmps = employeesList.filter(emp => !emp.mansioni || emp.mansioni.includes(sec.id)).length;
+              return (
+                <button
+                  key={sec.id}
+                  onClick={() => setActiveSector(sec.id)}
+                  style={{
+                    flex: 1,
+                    minWidth: '130px',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    border: isActive ? `2px solid ${sec.color}` : '1px solid rgba(255, 255, 255, 0.08)',
+                    background: isActive ? `${sec.color}22` : 'rgba(15, 23, 42, 0.6)',
+                    color: isActive ? '#f8fafc' : '#94a3b8',
+                    fontWeight: isActive ? 700 : 500,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justify: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <span style={{ fontSize: '1.1rem' }}>{sec.icon}</span>
+                  <span>{sec.label}</span>
+                  <span style={{
+                    fontSize: '0.7rem',
+                    background: isActive ? sec.color : 'rgba(255,255,255,0.1)',
+                    color: isActive ? '#0f172a' : '#94a3b8',
+                    padding: '2px 7px',
+                    borderRadius: '10px',
+                    fontWeight: 800
+                  }}>
+                    {countEmps}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Messaggio esito azioni */}
         {message && (
           <div style={{
@@ -528,7 +623,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
           </div>
         )}
 
-        {/* Action Bar Admin (Solo in modalità Planning Settimanale) */}
+        {/* Action Bar Admin (Solo in modalità Planning Settimanale per il settore selezionato) */}
         {!isPersonalMode && isAdmin && (
           <div style={{
             display: 'flex',
@@ -542,28 +637,28 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
             borderRadius: '12px',
             border: '1px solid rgba(255, 255, 255, 0.08)'
           }}>
-            <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 500 }}>
-              ⚡ Spunta i turni e condividi il planning finale col gruppo
+            <span style={{ fontSize: '0.82rem', color: '#94a3b8', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              ⚡ Assegna turni per <strong style={{ color: currentSectorObj.color }}>{currentSectorObj.icon} {currentSectorObj.label}</strong> e pubblica/esporta
             </span>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <button
-                onClick={handleWhatsAppShare}
+                onClick={() => handleWhatsAppShare(activeSector)}
                 className="btn-primary"
                 style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', fontSize: '0.85rem', padding: '10px 16px' }}
               >
                 <Send size={16} />
-                Condividi su WhatsApp
+                Condividi {currentSectorObj.label} su WhatsApp
               </button>
 
               <button
-                onClick={handlePublishPlanning}
+                onClick={() => handlePublishPlanning(activeSector)}
                 disabled={saving}
                 className="btn-primary"
                 style={{ fontSize: '0.85rem', padding: '10px 16px', opacity: saving ? 0.6 : 1 }}
               >
                 <CheckCircle2 size={16} />
-                {saving ? 'Salvataggio...' : 'Pubblica Planning'}
+                {saving ? 'Salvataggio...' : `Pubblica Planning ${currentSectorObj.label}`}
               </button>
             </div>
           </div>
@@ -574,7 +669,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
             Caricamento in corso...
           </div>
         ) : (
-          /* GRIGLIA BOX 1 (DISPONIBILITÀ PERSONALI O PANNELLO ADMIN) */
+          /* GRIGLIA BOX 1 (DISPONIBILITÀ PERSONALI O PANNELLO ADMIN DEL SETTORE) */
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
@@ -708,7 +803,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                   </div>
                 )}
 
-                {/* LATO ADMIN: Selettore Dipendenti per Pranzo e Cena */}
+                {/* LATO ADMIN: Selettore Dipendenti per Pranzo e Cena per il settore attivo */}
                 {!isPersonalMode && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {day.isTuesday ? (
@@ -746,7 +841,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                                 <span>Pranzo</span>
                               </div>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                {employeesList.map(emp => (
+                                {activeSectorEmployees.map(emp => (
                                   <div key={emp.id} style={{ padding: '5px 8px', fontSize: '0.72rem' }}>
                                     {emp.nome}
                                   </div>
@@ -769,64 +864,70 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                             </div>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              {employeesList.map(emp => {
-                                const empAvail = isAvailable(emp, day.dateStr, turno);
-                                const empAssigned = isAssigned(emp, day.dateStr, turno);
+                              {activeSectorEmployees.length === 0 ? (
+                                <span style={{ fontSize: '0.68rem', color: '#64748b', fontStyle: 'italic' }}>
+                                  Nessun dipendente in questo settore
+                                </span>
+                              ) : (
+                                activeSectorEmployees.map(emp => {
+                                  const empAvail = isAvailable(emp, day.dateStr, turno);
+                                  const empAssigned = isAssigned(emp, day.dateStr, turno, activeSector);
 
-                                return (
-                                  <button
-                                    key={emp.id}
-                                    type="button"
-                                    onClick={() => isAdmin && toggleShiftAssignment(emp, day.dateStr, turno)}
-                                    disabled={!isAdmin}
-                                    style={{
-                                      width: '100%',
-                                      textAlign: 'left',
-                                      padding: '5px 8px',
-                                      borderRadius: '6px',
-                                      fontSize: '0.72rem',
-                                      fontWeight: empAssigned ? 700 : 500,
-                                      border: empAssigned
-                                        ? '1px solid rgba(16, 185, 129, 0.8)'
-                                        : '1px solid transparent',
-                                      background: empAssigned
-                                        ? 'rgba(16, 185, 129, 0.25)'
-                                        : empAvail
-                                        ? 'rgba(51, 65, 85, 0.7)'
-                                        : 'rgba(15, 23, 42, 0.4)',
-                                      color: empAssigned
-                                        ? '#34d399'
-                                        : empAvail
-                                        ? '#f8fafc'
-                                        : '#64748b',
-                                      cursor: isAdmin ? 'pointer' : 'default',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justify: 'space-between',
-                                      transition: 'all 0.15s'
-                                    }}
-                                  >
-                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                      {emp.alias ? `${emp.nome} (${emp.alias})` : emp.nome}
-                                    </span>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                      {empAvail && (
-                                        <span
-                                          style={{
-                                            width: '6px',
-                                            height: '6px',
-                                            borderRadius: '50%',
-                                            background: '#34d399',
-                                            display: 'inline-block'
-                                          }}
-                                          title="Disponibile"
-                                        />
-                                      )}
-                                      {empAssigned && <span>✓</span>}
-                                    </div>
-                                  </button>
-                                );
-                              })}
+                                  return (
+                                    <button
+                                      key={emp.id}
+                                      type="button"
+                                      onClick={() => isAdmin && toggleShiftAssignment(emp, day.dateStr, turno, activeSector)}
+                                      disabled={!isAdmin}
+                                      style={{
+                                        width: '100%',
+                                        textAlign: 'left',
+                                        padding: '5px 8px',
+                                        borderRadius: '6px',
+                                        fontSize: '0.72rem',
+                                        fontWeight: empAssigned ? 700 : 500,
+                                        border: empAssigned
+                                          ? `1px solid ${currentSectorObj.color}`
+                                          : '1px solid transparent',
+                                        background: empAssigned
+                                          ? `${currentSectorObj.color}33`
+                                          : empAvail
+                                          ? 'rgba(51, 65, 85, 0.7)'
+                                          : 'rgba(15, 23, 42, 0.4)',
+                                        color: empAssigned
+                                          ? '#f8fafc'
+                                          : empAvail
+                                          ? '#f8fafc'
+                                          : '#64748b',
+                                        cursor: isAdmin ? 'pointer' : 'default',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justify: 'space-between',
+                                        transition: 'all 0.15s'
+                                      }}
+                                    >
+                                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {emp.alias ? `${emp.nome} (${emp.alias})` : emp.nome}
+                                      </span>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        {empAvail && (
+                                          <span
+                                            style={{
+                                              width: '6px',
+                                              height: '6px',
+                                              borderRadius: '50%',
+                                              background: '#34d399',
+                                              display: 'inline-block'
+                                            }}
+                                            title="Disponibile"
+                                          />
+                                        )}
+                                        {empAssigned && <span>✓</span>}
+                                      </div>
+                                    </button>
+                                  );
+                                })
+                              )}
                             </div>
                           </div>
                         );
@@ -853,7 +954,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                 Turni Confermati dall'Admin
               </h3>
               <p style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '4px' }}>
-                Visualizza i turni di Pranzo e Cena confermati per la settimana ({weekDays[0].dayFormatted} - {weekDays[6].dayFormatted}). Usa le frecce per consultare lo storico delle settimane passate!
+                Visualizza i turni confermati suddivisi per settore (💵 Cassa, 🛵 Fattorino, 🍕 Pizzeria). Usa le frecce per consultare le settimane!
               </p>
             </div>
 
@@ -899,7 +1000,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
             </div>
           </div>
 
-          {/* Griglia Box 2: Turni Confermati per ogni giorno */}
+          {/* Griglia Box 2: Turni Confermati per ogni giorno e settore */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
@@ -944,7 +1045,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {['pranzo', 'cena'].map(turno => {
                       if (day.isSunday && turno === 'pranzo') {
-                        /* Spacer invisibile la Domenica a Pranzo per allineare perfettamente la Cena */
+                        /* Spacer invisibile la Domenica a Pranzo */
                         return (
                           <div key="sunday-pranzo-spacer-box2" style={{ visibility: 'hidden', padding: '6px 8px', borderRadius: '6px' }}>
                             <div style={{ fontSize: '0.68rem', fontWeight: 700 }}>
@@ -954,7 +1055,9 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                         );
                       }
 
-                      const assignedEmps = employeesList.filter(emp => isAssigned(emp, day.dateStr, turno));
+                      const hasAnyAssignedInTurno = SECTORS.some(sec =>
+                        employeesList.some(emp => isAssigned(emp, day.dateStr, turno, sec.id))
+                      );
 
                       return (
                         <div key={turno} style={{
@@ -968,30 +1071,42 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                             <span style={{ textTransform: 'capitalize' }}>{turno}</span>
                           </div>
 
-                          {assignedEmps.length === 0 ? (
+                          {!hasAnyAssignedInTurno ? (
                             <span style={{ fontSize: '0.68rem', color: '#475569', fontStyle: 'italic', display: 'block' }}>
                               Nessuno
                             </span>
                           ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                              {assignedEmps.map(emp => (
-                                <div key={emp.id} style={{
-                                  fontSize: '0.7rem',
-                                  fontWeight: 700,
-                                  color: '#34d399',
-                                  background: 'rgba(16, 185, 129, 0.18)',
-                                  padding: '3px 6px',
-                                  borderRadius: '4px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justify: 'space-between'
-                                }}>
-                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {emp.alias ? `${emp.nome} (${emp.alias})` : emp.nome}
-                                  </span>
-                                  <span>✓</span>
-                                </div>
-                              ))}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {SECTORS.map(sec => {
+                                const secAssignedEmps = employeesList.filter(emp => isAssigned(emp, day.dateStr, turno, sec.id));
+                                if (secAssignedEmps.length === 0) return null;
+
+                                return (
+                                  <div key={sec.id} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                    <span style={{ fontSize: '0.62rem', fontWeight: 700, color: sec.color }}>
+                                      {sec.icon} {sec.label}:
+                                    </span>
+                                    {secAssignedEmps.map(emp => (
+                                      <div key={emp.id} style={{
+                                        fontSize: '0.68rem',
+                                        fontWeight: 700,
+                                        color: '#34d399',
+                                        background: 'rgba(16, 185, 129, 0.18)',
+                                        padding: '2px 5px',
+                                        borderRadius: '4px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justify: 'space-between'
+                                      }}>
+                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                          {emp.alias ? `${emp.nome} (${emp.alias})` : emp.nome}
+                                        </span>
+                                        <span>✓</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -1009,3 +1124,4 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
     </div>
   );
 }
+

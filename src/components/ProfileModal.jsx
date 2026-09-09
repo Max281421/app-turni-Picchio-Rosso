@@ -3,20 +3,25 @@ import { useAuth } from '../context/AuthContext';
 import { Shield, User, X, Trash2, ArrowRightLeft, Check, AlertTriangle, UserCheck } from 'lucide-react';
 
 export default function ProfileModal({ isOpen, onClose }) {
-  const { user, employee, updateEmployeeRole, updateEmployeeName, updateEmployeeAlias, deleteAccount } = useAuth();
+  const { user, employee, updateEmployeeRole, updateEmployeeName, updateEmployeeAlias, updateEmployeeMansioni, deleteAccount } = useAuth();
   const [loading, setLoading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingName, setEditingName] = useState(employee?.nome || '');
   const [editingAlias, setEditingAlias] = useState(employee?.alias || '');
+  const [editingMansioni, setEditingMansioni] = useState(employee?.mansioni || ['cassa', 'fattorino', 'pizzeria']);
   const [nameSaved, setNameSaved] = useState(false);
   const [aliasSaved, setAliasSaved] = useState(false);
+  const [mansioniSaved, setMansioniSaved] = useState(false);
 
   useEffect(() => {
     if (employee) {
       if (employee.nome) setEditingName(employee.nome);
       setEditingAlias(employee.alias || '');
+      if (employee.mansioni && Array.isArray(employee.mansioni)) {
+        setEditingMansioni(employee.mansioni);
+      }
     }
-  }, [employee?.nome, employee?.alias]);
+  }, [employee?.nome, employee?.alias, employee?.mansioni]);
 
   if (!isOpen || !user) return null;
 
@@ -47,6 +52,32 @@ export default function ProfileModal({ isOpen, onClose }) {
     } catch (err) {
       console.error(err);
       alert('Errore durante l\'aggiornamento dell\'alias.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleMansione = (target) => {
+    setEditingMansioni(prev => {
+      if (prev.includes(target)) {
+        if (prev.length === 1) return prev; // Mantieni almeno un settore
+        return prev.filter(m => m !== target);
+      } else {
+        return [...prev, target];
+      }
+    });
+  };
+
+  const handleSaveMansioni = async () => {
+    if (!employee?.id) return;
+    setLoading(true);
+    try {
+      await updateEmployeeMansioni(employee.id, editingMansioni);
+      setMansioniSaved(true);
+      setTimeout(() => setMansioniSaved(false), 2500);
+    } catch (err) {
+      console.error(err);
+      alert('Errore durante l\'aggiornamento delle mansioni.');
     } finally {
       setLoading(false);
     }
@@ -133,7 +164,7 @@ export default function ProfileModal({ isOpen, onClose }) {
         </div>
 
         {/* Edit Alias / Soprannome WhatsApp Section */}
-        <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '20px' }}>
+        <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '16px' }}>
           <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#38bdf8', display: 'block', marginBottom: '4px' }}>
             Alias / Soprannome WhatsApp
           </label>
@@ -160,6 +191,57 @@ export default function ProfileModal({ isOpen, onClose }) {
               {aliasSaved ? 'Salvato!' : 'Salva'}
             </button>
           </div>
+        </div>
+
+        {/* Multi-Selezione Mansioni Operative (Cassa, Fattorino, Pizzeria) */}
+        <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '20px' }}>
+          <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#38bdf8', display: 'block', marginBottom: '4px' }}>
+            Ruoli Operativi in Pizzeria (Seleziona uno o più)
+          </label>
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '10px' }}>
+            Determina in quali calendari settoriali del planning apparirai
+          </span>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '12px' }}>
+            {[
+              { id: 'cassa', label: '💵 Cassa' },
+              { id: 'fattorino', label: '🛵 Fattorino' },
+              { id: 'pizzeria', label: '🍕 Pizzeria' }
+            ].map(m => {
+              const isSelected = editingMansioni.includes(m.id);
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => handleToggleMansione(m.id)}
+                  style={{
+                    padding: '8px',
+                    borderRadius: '8px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    border: isSelected ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
+                    background: isSelected ? 'rgba(56, 189, 248, 0.2)' : 'rgba(15, 23, 42, 0.6)',
+                    color: isSelected ? '#38bdf8' : '#94a3b8',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  {m.label} {isSelected ? '✓' : ''}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSaveMansioni}
+            disabled={loading}
+            className="btn-primary"
+            style={{ width: '100%', padding: '10px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+          >
+            {mansioniSaved ? <Check size={16} /> : <UserCheck size={16} />}
+            {mansioniSaved ? 'Mansioni Salvate!' : 'Salva Ruoli Operativi'}
+          </button>
         </div>
 
         {/* Current Role Card */}

@@ -124,7 +124,7 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const register = async (email, password, nome, ruolo = 'dipendente') => {
+  const register = async (email, password, nome, ruolo = 'dipendente', mansioni = ['cassa', 'fattorino', 'pizzeria']) => {
     const supabase = getSupabaseClient();
     if (!supabase) throw new Error('Supabase non configurato');
 
@@ -135,7 +135,7 @@ export function AuthProvider({ children }) {
       email,
       password,
       options: {
-        data: { nome, ruolo }
+        data: { nome, ruolo, mansioni }
       }
     });
 
@@ -156,13 +156,13 @@ export function AuthProvider({ children }) {
 
     if (userObj) {
       await supabase.auth.updateUser({
-        data: { nome, ruolo }
+        data: { nome, ruolo, mansioni }
       });
 
       // 2. Inserimento sicuro in public.employees con .insert() che rispetta le policy RLS di registrazione
       const { data: empData, error: empErr } = await supabase
         .from('employees')
-        .insert([{ auth_user_id: userObj.id, nome, ruolo }])
+        .insert([{ auth_user_id: userObj.id, nome, ruolo, mansioni }])
         .select()
         .maybeSingle();
 
@@ -290,6 +290,40 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Funzione per aggiornare l'array delle mansioni operative (cassa, fattorino, pizzeria)
+  const updateEmployeeMansioni = async (employeeId, newMansioni) => {
+    const supabase = getSupabaseClient();
+    if (!supabase || !employeeId) return;
+
+    try {
+      const formattedMansioni = Array.isArray(newMansioni) && newMansioni.length > 0
+        ? newMansioni
+        : ['cassa', 'fattorino', 'pizzeria'];
+
+      const isSelf = employee?.id === employeeId || employee?.auth_user_id === user?.id;
+
+      const { data, error } = await supabase
+        .from('employees')
+        .update({ mansioni: formattedMansioni })
+        .eq('id', employeeId)
+        .select()
+        .maybeSingle();
+
+      if (error) {
+        console.warn('DB update mansioni warning:', error);
+      }
+
+      if (isSelf) {
+        setEmployee((prev) => prev ? { ...prev, mansioni: formattedMansioni } : null);
+      }
+
+      return data || { mansioni: formattedMansioni };
+    } catch (err) {
+      console.error('Error updating mansioni:', err);
+      throw err;
+    }
+  };
+
   // Funzione per eliminare l'account o un dipendente
   const deleteAccount = async (targetEmployeeId) => {
     const supabase = getSupabaseClient();
@@ -359,6 +393,7 @@ export function AuthProvider({ children }) {
         updateEmployeeRole,
         updateEmployeeName,
         updateEmployeeAlias,
+        updateEmployeeMansioni,
         deleteAccount,
         refreshProfile: () => user && fetchEmployeeProfile(user.id),
         checkConfigAndInit

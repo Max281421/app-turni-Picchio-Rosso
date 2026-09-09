@@ -37,8 +37,18 @@ ON public.planned_shifts FOR ALL
 USING (true)
 WITH CHECK (true);
 
--- Aggiunta colonna alias/soprannome per i dipendenti (usato per WhatsApp)
+-- Aggiunta colonna alias/soprannome e mansioni (array di ruoli operativi: cassa, fattorino, pizzeria) per i dipendenti
 ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS alias TEXT;
+ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS mansioni TEXT[] DEFAULT ARRAY['cassa', 'fattorino', 'pizzeria']::TEXT[];
+
+-- Aggiunta colonna mansione a planned_shifts per isolare i planning per settore (cassa, fattorino, pizzeria)
+ALTER TABLE public.planned_shifts ADD COLUMN IF NOT EXISTS mansione VARCHAR(20) DEFAULT 'cassa';
+
+-- Aggiornamento del vincolo unico su planned_shifts per supportare planning distinti per settore
+ALTER TABLE public.planned_shifts DROP CONSTRAINT IF EXISTS unique_planned_shift;
+ALTER TABLE public.planned_shifts DROP CONSTRAINT IF EXISTS planned_shifts_employee_id_data_turno_key;
+ALTER TABLE public.planned_shifts DROP CONSTRAINT IF EXISTS unique_planned_shift_sector;
+ALTER TABLE public.planned_shifts ADD CONSTRAINT unique_planned_shift_sector UNIQUE (employee_id, data, turno, mansione);
 
 -- PERMESSI FONDAMENTALI PER SUPABASE POSTGREST API (Senza questi Postgres restituisce errore 42501 permission denied)
 GRANT ALL ON TABLE public.employees TO authenticated;
