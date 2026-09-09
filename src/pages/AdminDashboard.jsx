@@ -52,7 +52,11 @@ export default function AdminDashboard() {
         .order('nome', { ascending: true });
 
       if (empErr) console.error('Error fetching employees:', empErr);
-      setEmployees(empData || []);
+      const enrichedEmps = (empData || []).map(e => ({
+        ...e,
+        mansioni: parseMansioni(e.mansioni, e.id || e.auth_user_id)
+      }));
+      setEmployees(enrichedEmps);
 
       const { data: shiftData, error: shiftErr } = await supabase
         .from('shifts')

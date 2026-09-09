@@ -137,7 +137,10 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         console.error('Errore caricamento dipendenti:', empErr);
       }
 
-      let list = empData || [];
+      let list = (empData || []).map(e => ({
+        ...e,
+        mansioni: parseMansioni(e.mansioni, e.id || e.auth_user_id)
+      }));
       
       // Auto-healing: se l'utente attivo non ha ancora un record salvato nella tabella employees di Supabase, crealo subito
       if (activeEmployee && (!list || !list.some(e => e.auth_user_id === activeEmployee.auth_user_id || e.id === activeEmployee.id))) {
@@ -149,9 +152,10 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
           .maybeSingle();
 
         if (insertedEmp) {
-          list = [insertedEmp, ...list.filter(e => e.id !== insertedEmp.id)];
+          const formatted = { ...insertedEmp, mansioni: parseMansioni(insertedEmp.mansioni, insertedEmp.id || insertedEmp.auth_user_id) };
+          list = [formatted, ...list.filter(e => e.id !== insertedEmp.id)];
         } else {
-          list = [activeEmployee, ...list];
+          list = [{ ...activeEmployee, mansioni: parseMansioni(activeEmployee.mansioni, activeEmployee.id || activeEmployee.auth_user_id) }, ...list];
         }
       }
 
@@ -357,7 +361,10 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         return getEmpMansioni(emp).includes(targetSector);
       });
 
-      const { data: existingShifts, error: fetchErr } = await supabase
+      let existingShifts = [];
+      let hasMansioneColumn = true;
+
+      const { data: eShifts, error: fetchErr } = await supabase
         .from('planned_shifts')
         .select('*')
         .gte('data', weekStartStr)
@@ -365,14 +372,27 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         .eq('mansione', targetSector);
 
       if (fetchErr) {
-        if (fetchErr.code === 'PGRST205') {
+        if (fetchErr.code === 'PGRST205' || fetchErr.message?.includes('schema cache') || fetchErr.message?.includes('relation "public.planned_shifts" does not exist')) {
           throw new Error('Tabella "planned_shifts" assente sul database. Esegui il file SQL schema_planned_shifts.sql nella dashboard Supabase -> SQL Editor.');
         }
-        throw fetchErr;
+        if (fetchErr.code === 'PGRST204' || fetchErr.message?.includes('mansione') || fetchErr.code === '42703') {
+          hasMansioneColumn = false;
+          const { data: fallbackShifts, error: fallbackErr } = await supabase
+            .from('planned_shifts')
+            .select('*')
+            .gte('data', weekStartStr)
+            .lte('data', weekEndStr);
+          if (fallbackErr) throw fallbackErr;
+          existingShifts = fallbackShifts || [];
+        } else {
+          throw fetchErr;
+        }
+      } else {
+        existingShifts = eShifts || [];
       }
 
       const existingMap = new Map();
-      existingShifts?.forEach(s => {
+      existingShifts.forEach(s => {
         existingMap.set(`${s.employee_id}_${s.data}_${s.turno}`, s.id);
       });
 
@@ -393,12 +413,13 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                                (emp.auth_user_id ? existingMap.get(`${emp.auth_user_id}_${day.dateStr}_${turno}`) : null);
 
             if (isAssignedShift && !existingId) {
-              rawInsert.push({
+              const insertObj = {
                 employee_id: targetEmpDbId,
                 data: day.dateStr,
                 turno: turno,
-                mansione: targetSector,
-              });
+              };
+              if (hasMansioneColumn) insertObj.mansione = targetSector;
+              rawInsert.push(insertObj);
             } else if (!isAssignedShift && existingId) {
               toDeleteIds.push(existingId);
             }
@@ -409,7 +430,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       const toInsert = [];
       const seenKeys = new Set();
       for (const item of rawInsert) {
-        const key = `${item.employee_id}_${item.data}_${item.turno}_${item.mansione}`;
+        const key = `${item.employee_id}_${item.data}_${item.turno}_${item.mansione || 'default'}`;
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
           toInsert.push(item);
@@ -429,7 +450,12 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       }
 
       if (toInsert.length > 0) {
-        const { error: insErr } = await supabase.from('planned_shifts').insert(toInsert);
+        let { error: insErr } = await supabase.from('planned_shifts').insert(toInsert);
+        if (insErr && (insErr.code === 'PGRST204' || insErr.message?.includes('mansione') || insErr.code === '42703')) {
+          const fallbackPayload = toInsert.map(({ mansione, ...rest }) => rest);
+          const { error: retryErr } = await supabase.from('planned_shifts').insert(fallbackPayload);
+          insErr = retryErr;
+        }
         if (insErr) {
           if (insErr.code === '42501') {
             throw new Error('Permessi insufficienti su planned_shifts (Errore 42501). Esegui il file SQL schema_planned_shifts.sql aggiornato su Supabase per concedere le GRANT.');

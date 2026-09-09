@@ -9,7 +9,7 @@ export default function ProfileModal({ isOpen, onClose }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingName, setEditingName] = useState(employee?.nome || '');
   const [editingAlias, setEditingAlias] = useState(employee?.alias || '');
-  const [editingMansioni, setEditingMansioni] = useState(parseMansioni(employee?.mansioni));
+  const [editingMansioni, setEditingMansioni] = useState(parseMansioni(employee?.mansioni, employee?.id || employee?.auth_user_id));
   const [nameSaved, setNameSaved] = useState(false);
   const [aliasSaved, setAliasSaved] = useState(false);
   const [mansioniSaved, setMansioniSaved] = useState(false);
@@ -18,9 +18,9 @@ export default function ProfileModal({ isOpen, onClose }) {
     if (employee) {
       if (employee.nome) setEditingName(employee.nome);
       setEditingAlias(employee.alias || '');
-      setEditingMansioni(parseMansioni(employee.mansioni));
+      setEditingMansioni(parseMansioni(employee.mansioni, employee.id || employee.auth_user_id));
     }
-  }, [employee?.nome, employee?.alias, employee?.mansioni]);
+  }, [employee?.nome, employee?.alias, employee?.mansioni, employee?.id, employee?.auth_user_id]);
 
   if (!isOpen || !user) return null;
 

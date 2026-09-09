@@ -17,9 +17,18 @@ export function getShortFirstName(fullName) {
 
 /**
  * Estrae e normalizza in un Array JS valido le mansioni operative dell'utente.
- * Gestisce array JS, stringhe Postgres array ("{cassa,fattorino}"), e fallback se vuoto.
+ * Gestisce array JS, stringhe Postgres array ("{cassa,fattorino}"), LocalStorage, e fallback se vuoto.
  */
-export function parseMansioni(mansioni) {
+export function parseMansioni(mansioni, empId = null) {
+  if (empId) {
+    try {
+      const stored = localStorage.getItem(`APP_TURNI_MANSIONI_${empId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+  }
   if (!mansioni) return ['cassa', 'fattorino', 'pizzeria'];
   if (Array.isArray(mansioni)) {
     if (mansioni.length === 0) return ['cassa', 'fattorino', 'pizzeria'];

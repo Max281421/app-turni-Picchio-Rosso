@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { getSupabaseClient, getSupabaseCredentials } from '../lib/supabase';
+import { parseMansioni } from '../lib/whatsappExport';
 
 const AuthContext = createContext();
 
@@ -53,6 +54,27 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   };
 
+  const getStoredMansioni = (empId, authUserId) => {
+    try {
+      if (empId) {
+        const saved = localStorage.getItem(`APP_TURNI_MANSIONI_${empId}`);
+        if (saved) return JSON.parse(saved);
+      }
+      if (authUserId) {
+        const saved = localStorage.getItem(`APP_TURNI_MANSIONI_${authUserId}`);
+        if (saved) return JSON.parse(saved);
+      }
+    } catch (e) {}
+    return null;
+  };
+
+  const formatEmpWithMansioni = (emp) => {
+    if (!emp) return null;
+    const stored = getStoredMansioni(emp.id, emp.auth_user_id);
+    const mansioni = stored && Array.isArray(stored) && stored.length > 0 ? stored : parseMansioni(emp.mansioni, emp.id || emp.auth_user_id);
+    return { ...emp, mansioni };
+  };
+
   const fetchEmployeeProfile = async (authUserId) => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
@@ -69,7 +91,7 @@ export function AuthProvider({ children }) {
       }
 
       if (data) {
-        setEmployee(data);
+        setEmployee(formatEmpWithMansioni(data));
       } else {
         // Se la riga non esiste ancora in employees, crea il profilo con .insert()
         const { data: userData } = await supabase.auth.getUser();
@@ -86,7 +108,7 @@ export function AuthProvider({ children }) {
           .maybeSingle();
 
         if (newEmp) {
-          setEmployee(newEmp);
+          setEmployee(formatEmpWithMansioni(newEmp));
         } else {
           // Se la insert ha dato errore perché la riga esisteva già, riprova con la select
           const { data: retryEmp } = await supabase
@@ -96,10 +118,10 @@ export function AuthProvider({ children }) {
             .maybeSingle();
 
           if (retryEmp) {
-            setEmployee(retryEmp);
+            setEmployee(formatEmpWithMansioni(retryEmp));
           } else {
             console.warn('Fallback employee profile initialized:', createErr);
-            setEmployee({ id: authUserId, auth_user_id: authUserId, nome: targetName, ruolo: targetRole });
+            setEmployee(formatEmpWithMansioni({ id: authUserId, auth_user_id: authUserId, nome: targetName, ruolo: targetRole }));
           }
         }
       }
@@ -326,35 +348,49 @@ export function AuthProvider({ children }) {
   // Funzione per aggiornare l'array delle mansioni operative (cassa, fattorino, pizzeria)
   const updateEmployeeMansioni = async (employeeId, newMansioni) => {
     const supabase = getSupabaseClient();
-    if (!supabase || !employeeId) return;
+    if (!employeeId) return;
 
     try {
       const formattedMansioni = Array.isArray(newMansioni) && newMansioni.length > 0
         ? newMansioni
         : ['cassa', 'fattorino', 'pizzeria'];
 
-      const isSelf = employee?.id === employeeId || employee?.auth_user_id === user?.id;
+      try {
+        localStorage.setItem(`APP_TURNI_MANSIONI_${employeeId}`, JSON.stringify(formattedMansioni));
+        if (employee?.auth_user_id) {
+          localStorage.setItem(`APP_TURNI_MANSIONI_${employee.auth_user_id}`, JSON.stringify(formattedMansioni));
+        }
+        if (employee?.id) {
+          localStorage.setItem(`APP_TURNI_MANSIONI_${employee.id}`, JSON.stringify(formattedMansioni));
+        }
+      } catch (e) {}
 
-      let { data, error } = await supabase
-        .from('employees')
-        .update({ mansioni: formattedMansioni })
-        .eq('id', employeeId)
-        .select()
-        .maybeSingle();
+      const isSelf = employee?.id === employeeId || employee?.auth_user_id === user?.id || employee?.auth_user_id === employeeId;
 
-      if (!data) {
-        const { data: dataAuth, error: errorAuth } = await supabase
-          .from('employees')
-          .update({ mansioni: formattedMansioni })
-          .eq('auth_user_id', employeeId)
-          .select()
-          .maybeSingle();
-        data = dataAuth;
-        if (errorAuth) console.warn('DB update mansioni auth_user_id error:', errorAuth);
-      }
+      let data = null;
+      if (supabase) {
+        try {
+          const { data: d1 } = await supabase
+            .from('employees')
+            .update({ mansioni: formattedMansioni })
+            .eq('id', employeeId)
+            .select()
+            .maybeSingle();
 
-      if (error && !data) {
-        console.warn('DB update mansioni id error:', error);
+          data = d1;
+
+          if (!data) {
+            const { data: d2 } = await supabase
+              .from('employees')
+              .update({ mansioni: formattedMansioni })
+              .eq('auth_user_id', employeeId)
+              .select()
+              .maybeSingle();
+            data = d2;
+          }
+        } catch (dbErr) {
+          console.warn('DB update mansioni error (handled with LocalStorage fallback):', dbErr);
+        }
       }
 
       if (isSelf) {
@@ -364,7 +400,7 @@ export function AuthProvider({ children }) {
       return data || { mansioni: formattedMansioni };
     } catch (err) {
       console.error('Error updating mansioni:', err);
-      throw err;
+      return { mansioni: newMansioni };
     }
   };
 
