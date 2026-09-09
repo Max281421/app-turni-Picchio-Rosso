@@ -72,6 +72,9 @@ export default function ProfileModal({ isOpen, onClose }) {
     setLoading(true);
     try {
       await updateEmployeeMansioni(employee.id, editingMansioni);
+      if (employee.auth_user_id && employee.auth_user_id !== employee.id) {
+        await updateEmployeeMansioni(employee.auth_user_id, editingMansioni);
+      }
       setMansioniSaved(true);
       setTimeout(() => setMansioniSaved(false), 2500);
     } catch (err) {

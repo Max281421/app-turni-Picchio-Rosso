@@ -191,7 +191,7 @@ export function AuthProvider({ children }) {
   // Funzione per cambiare il ruolo di un utente (es. da Dipendente ad Admin)
   const updateEmployeeRole = async (employeeId, newRole) => {
     const supabase = getSupabaseClient();
-    if (!supabase) return;
+    if (!supabase || !employeeId) return;
 
     try {
       const isSelf = employeeId === employee?.id || employeeId === employee?.auth_user_id || employeeId === user?.id;
@@ -202,15 +202,26 @@ export function AuthProvider({ children }) {
         });
       }
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('employees')
         .update({ ruolo: newRole })
-        .or(`id.eq.${employeeId},auth_user_id.eq.${employeeId}`)
+        .eq('id', employeeId)
         .select()
         .maybeSingle();
 
-      if (error) {
-        console.warn('DB update role warning:', error);
+      if (!data) {
+        const { data: dataAuth, error: errorAuth } = await supabase
+          .from('employees')
+          .update({ ruolo: newRole })
+          .eq('auth_user_id', employeeId)
+          .select()
+          .maybeSingle();
+        data = dataAuth;
+        if (errorAuth) console.warn('DB update role auth_user_id error:', errorAuth);
+      }
+
+      if (error && !data) {
+        console.warn('DB update role id error:', error);
       }
 
       if (isSelf) {
@@ -238,15 +249,26 @@ export function AuthProvider({ children }) {
         });
       }
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('employees')
         .update({ nome: trimmedName })
-        .or(`id.eq.${employeeId},auth_user_id.eq.${employeeId}`)
+        .eq('id', employeeId)
         .select()
         .maybeSingle();
 
-      if (error) {
-        console.warn('DB update name warning:', error);
+      if (!data) {
+        const { data: dataAuth, error: errorAuth } = await supabase
+          .from('employees')
+          .update({ nome: trimmedName })
+          .eq('auth_user_id', employeeId)
+          .select()
+          .maybeSingle();
+        data = dataAuth;
+        if (errorAuth) console.warn('DB update name auth_user_id error:', errorAuth);
+      }
+
+      if (error && !data) {
+        console.warn('DB update name id error:', error);
       }
 
       if (isSelf) {
@@ -268,15 +290,26 @@ export function AuthProvider({ children }) {
       const trimmedAlias = (newAlias || '').trim();
       const isSelf = employee?.id === employeeId || employee?.auth_user_id === user?.id;
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('employees')
         .update({ alias: trimmedAlias })
-        .or(`id.eq.${employeeId},auth_user_id.eq.${employeeId}`)
+        .eq('id', employeeId)
         .select()
         .maybeSingle();
 
-      if (error) {
-        console.warn('DB update alias warning:', error);
+      if (!data) {
+        const { data: dataAuth, error: errorAuth } = await supabase
+          .from('employees')
+          .update({ alias: trimmedAlias })
+          .eq('auth_user_id', employeeId)
+          .select()
+          .maybeSingle();
+        data = dataAuth;
+        if (errorAuth) console.warn('DB update alias auth_user_id error:', errorAuth);
+      }
+
+      if (error && !data) {
+        console.warn('DB update alias id error:', error);
       }
 
       if (isSelf) {
@@ -302,15 +335,26 @@ export function AuthProvider({ children }) {
 
       const isSelf = employee?.id === employeeId || employee?.auth_user_id === user?.id;
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('employees')
         .update({ mansioni: formattedMansioni })
-        .or(`id.eq.${employeeId},auth_user_id.eq.${employeeId}`)
+        .eq('id', employeeId)
         .select()
         .maybeSingle();
 
-      if (error) {
-        console.warn('DB update mansioni warning:', error);
+      if (!data) {
+        const { data: dataAuth, error: errorAuth } = await supabase
+          .from('employees')
+          .update({ mansioni: formattedMansioni })
+          .eq('auth_user_id', employeeId)
+          .select()
+          .maybeSingle();
+        data = dataAuth;
+        if (errorAuth) console.warn('DB update mansioni auth_user_id error:', errorAuth);
+      }
+
+      if (error && !data) {
+        console.warn('DB update mansioni id error:', error);
       }
 
       if (isSelf) {

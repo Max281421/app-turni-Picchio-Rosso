@@ -301,7 +301,14 @@ export default function AdminDashboard() {
                         </span>
                         <span style={{ color: '#475569' }}>•</span>
                         {(() => {
-                          const mans = parseMansioni(emp.mansioni);
+                          const isSelf = employee && (
+                            emp.id === employee.id ||
+                            emp.auth_user_id === employee.auth_user_id ||
+                            emp.id === employee.auth_user_id ||
+                            emp.auth_user_id === employee.id
+                          );
+                          const targetMansioni = isSelf && employee.mansioni ? employee.mansioni : emp.mansioni;
+                          const mans = parseMansioni(targetMansioni);
                           return (
                             <div style={{ display: 'flex', gap: '4px' }}>
                               {mans.includes('cassa') && <span style={{ fontSize: '0.75rem' }} title="Cassa">💵</span>}
