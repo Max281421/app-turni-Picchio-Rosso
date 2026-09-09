@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { parseMansioni } from '../lib/whatsappExport';
 import { Shield, User, X, Trash2, ArrowRightLeft, Check, AlertTriangle, UserCheck } from 'lucide-react';
 
 export default function ProfileModal({ isOpen, onClose }) {
@@ -8,7 +9,7 @@ export default function ProfileModal({ isOpen, onClose }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingName, setEditingName] = useState(employee?.nome || '');
   const [editingAlias, setEditingAlias] = useState(employee?.alias || '');
-  const [editingMansioni, setEditingMansioni] = useState(employee?.mansioni || ['cassa', 'fattorino', 'pizzeria']);
+  const [editingMansioni, setEditingMansioni] = useState(parseMansioni(employee?.mansioni));
   const [nameSaved, setNameSaved] = useState(false);
   const [aliasSaved, setAliasSaved] = useState(false);
   const [mansioniSaved, setMansioniSaved] = useState(false);
@@ -17,9 +18,7 @@ export default function ProfileModal({ isOpen, onClose }) {
     if (employee) {
       if (employee.nome) setEditingName(employee.nome);
       setEditingAlias(employee.alias || '');
-      if (employee.mansioni && Array.isArray(employee.mansioni)) {
-        setEditingMansioni(employee.mansioni);
-      }
+      setEditingMansioni(parseMansioni(employee.mansioni));
     }
   }, [employee?.nome, employee?.alias, employee?.mansioni]);
 

@@ -16,6 +16,24 @@ export function getShortFirstName(fullName) {
 }
 
 /**
+ * Estrae e normalizza in un Array JS valido le mansioni operative dell'utente.
+ * Gestisce array JS, stringhe Postgres array ("{cassa,fattorino}"), e fallback se vuoto.
+ */
+export function parseMansioni(mansioni) {
+  if (!mansioni) return ['cassa', 'fattorino', 'pizzeria'];
+  if (Array.isArray(mansioni)) {
+    if (mansioni.length === 0) return ['cassa', 'fattorino', 'pizzeria'];
+    return mansioni;
+  }
+  if (typeof mansioni === 'string') {
+    const cleaned = mansioni.replace(/[{}"\s]/g, '');
+    if (!cleaned) return ['cassa', 'fattorino', 'pizzeria'];
+    return cleaned.split(',').filter(Boolean);
+  }
+  return ['cassa', 'fattorino', 'pizzeria'];
+}
+
+/**
  * Formatta un elenco di turni di una settimana nel formato WhatsApp richiesto:
  * LUN ALLE FABIO 
  * MER ANGELO ANTO 
@@ -32,11 +50,8 @@ export function generateWhatsAppPlanningText(weekDaysArray, employeesList, targe
   // Se è specificato un settore (es. 'fattorino'), filtra i dipendenti abilitati a quel settore
   const filteredEmps = targetSector
     ? employeesList.filter(e => {
-        if (e.mansioni && Array.isArray(e.mansioni)) {
-          return e.mansioni.includes(targetSector);
-        }
-        if (e.mansione) return e.mansione === targetSector;
-        return true; // Default fallback
+        const mans = parseMansioni(e.mansioni || e.mansione);
+        return mans.includes(targetSector);
       })
     : employeesList;
 

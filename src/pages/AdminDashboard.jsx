@@ -5,6 +5,7 @@ import MonthPicker from '../components/MonthPicker';
 import ShiftModal from '../components/ShiftModal';
 import { exportShiftsToExcel } from '../lib/excelExport';
 import { exportSummaryToPDF, exportGridToPDF } from '../lib/pdfExport';
+import { parseMansioni } from '../lib/whatsappExport';
 import { FileSpreadsheet, FileText, Users, Sun, Moon, Calendar as CalendarIcon, Search, UserCheck, ChevronDown, ChevronUp, Plus, Edit2, X } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -299,11 +300,16 @@ export default function AdminDashboard() {
                           {emp.ruolo === 'admin' ? 'Amministratore' : 'Dipendente'}
                         </span>
                         <span style={{ color: '#475569' }}>•</span>
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                          {(!emp.mansioni || emp.mansioni.includes('cassa')) && <span style={{ fontSize: '0.75rem' }} title="Cassa">💵</span>}
-                          {(!emp.mansioni || emp.mansioni.includes('fattorino')) && <span style={{ fontSize: '0.75rem' }} title="Fattorino">🛵</span>}
-                          {(!emp.mansioni || emp.mansioni.includes('pizzeria')) && <span style={{ fontSize: '0.75rem' }} title="Pizzeria">🍕</span>}
-                        </div>
+                        {(() => {
+                          const mans = parseMansioni(emp.mansioni);
+                          return (
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              {mans.includes('cassa') && <span style={{ fontSize: '0.75rem' }} title="Cassa">💵</span>}
+                              {mans.includes('fattorino') && <span style={{ fontSize: '0.75rem' }} title="Fattorino">🛵</span>}
+                              {mans.includes('pizzeria') && <span style={{ fontSize: '0.75rem' }} title="Pizzeria">🍕</span>}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -336,11 +342,7 @@ export default function AdminDashboard() {
                         <button
                           onClick={() => {
                             setEditingSectorEmp(emp);
-                            setEditingSectorMansioni(
-                              emp.mansioni && Array.isArray(emp.mansioni) && emp.mansioni.length > 0
-                                ? emp.mansioni
-                                : ['cassa', 'fattorino', 'pizzeria']
-                            );
+                            setEditingSectorMansioni(parseMansioni(emp.mansioni));
                           }}
                           className="btn-secondary"
                           style={{ padding: '6px 12px', fontSize: '0.8rem' }}

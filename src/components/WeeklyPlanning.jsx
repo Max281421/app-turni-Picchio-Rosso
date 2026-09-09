@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getSupabaseClient } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { sharePlanningToWhatsApp } from '../lib/whatsappExport';
+import { sharePlanningToWhatsApp, parseMansioni } from '../lib/whatsappExport';
 import { Calendar, Sun, Moon, Send, CheckCircle2, ChevronLeft, ChevronRight, UserCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -498,10 +498,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       emp.auth_user_id === activeEmployee.id
     );
     const target = isSelf && activeEmployee.mansioni ? activeEmployee.mansioni : emp.mansioni;
-    if (target && Array.isArray(target) && target.length > 0) {
-      return target;
-    }
-    return ['cassa', 'fattorino', 'pizzeria'];
+    return parseMansioni(target);
   };
 
   const currentSectorObj = SECTORS.find(s => s.id === activeSector) || SECTORS[0];
