@@ -15,6 +15,17 @@ export default function ProfileModal({ isOpen, onClose }) {
   const [mansioniSaved, setMansioniSaved] = useState(false);
 
   useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
     if (employee) {
       if (employee.nome) setEditingName(employee.nome);
       setEditingAlias(employee.alias || '');
@@ -115,26 +126,41 @@ export default function ProfileModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1000 }}>
-      <div className="glass-card modal-content" onClick={(e) => e.stopPropagation()} style={{ padding: '28px', maxWidth: '460px' }}>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="glass-card modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '460px' }}>
         
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ background: isAdmin ? 'rgba(56, 189, 248, 0.15)' : 'rgba(129, 140, 248, 0.15)', padding: '10px', borderRadius: '12px' }}>
-              {isAdmin ? <Shield size={24} color="#38bdf8" /> : <User size={24} color="#818cf8" />}
+        {/* Sticky Header for easy closing on scroll */}
+        <div className="modal-header-sticky">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ background: isAdmin ? 'rgba(56, 189, 248, 0.15)' : 'rgba(129, 140, 248, 0.15)', padding: '8px', borderRadius: '10px' }}>
+              {isAdmin ? <Shield size={22} color="#38bdf8" /> : <User size={22} color="#818cf8" />}
             </div>
             <div>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#f8fafc', margin: 0 }}>
                 Gestione Profilo Utente
               </h3>
-              <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block' }}>
                 {user.email}
               </span>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}>
-            <X size={24} />
+          <button
+            onClick={onClose}
+            aria-label="Chiudi"
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: 'none',
+              color: '#94a3b8',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer'
+            }}
+          >
+            <X size={20} />
           </button>
         </div>
 
@@ -335,6 +361,17 @@ export default function ProfileModal({ isOpen, onClose }) {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Close Button at bottom for easy mobile dismissal */}
+        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+          <button
+            onClick={onClose}
+            className="btn-secondary"
+            style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: '0.9rem', fontWeight: 600 }}
+          >
+            Chiudi Finestra
+          </button>
         </div>
 
       </div>

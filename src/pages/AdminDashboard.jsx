@@ -26,6 +26,17 @@ export default function AdminDashboard() {
   const [editingSectorMansioni, setEditingSectorMansioni] = useState([]);
   const [savingSectors, setSavingSectors] = useState(false);
 
+  useEffect(() => {
+    if (editingSectorEmp) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [editingSectorEmp]);
+
   // Edit Modal for Admin
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedEmp, setSelectedEmp] = useState(null);
@@ -619,19 +630,34 @@ export default function AdminDashboard() {
 
       {/* Modal Modifica Settori Operativi per Admin */}
       {editingSectorEmp && (
-        <div className="modal-overlay" onClick={() => setEditingSectorEmp(null)} style={{ zIndex: 1000 }}>
-          <div className="glass-card modal-content" onClick={(e) => e.stopPropagation()} style={{ padding: '24px', maxWidth: '440px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div className="modal-overlay" onClick={() => setEditingSectorEmp(null)}>
+          <div className="glass-card modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <div className="modal-header-sticky">
               <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#f8fafc' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#f8fafc', margin: 0 }}>
                   Settori Operativi Pizzeria
                 </h3>
-                <span style={{ fontSize: '0.85rem', color: '#38bdf8', fontWeight: 600 }}>
+                <span style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 600 }}>
                   {editingSectorEmp.nome} {editingSectorEmp.alias ? `(${editingSectorEmp.alias})` : ''}
                 </span>
               </div>
-              <button onClick={() => setEditingSectorEmp(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}>
-                <X size={22} />
+              <button
+                onClick={() => setEditingSectorEmp(null)}
+                aria-label="Chiudi"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  color: '#94a3b8',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={20} />
               </button>
             </div>
 

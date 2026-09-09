@@ -221,23 +221,126 @@ input:-webkit-autofill:active {
   animation: fadeIn 0.3s ease-out forwards;
 }
 
-/* Modal Overlay */
+/* Modal Scroll Lock */
+body.modal-open {
+  overflow: hidden !important;
+  touch-action: none;
+}
+
+/* Modal Overlay & Responsive Content */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(8px);
-  z-index: 100;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal-content {
   width: 100%;
-  max-width: 440px;
+  max-width: 480px;
+  max-height: 85vh;
+  max-height: 85dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  margin: auto;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  position: relative;
   animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-header-sticky {
+  position: sticky;
+  top: -20px;
+  z-index: 20;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 14px 16px;
+  margin: -20px -20px 16px -20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+}
+
+@media (max-width: 640px) {
+  .modal-overlay {
+    padding: 8px;
+    align-items: center;
+  }
+  .modal-content {
+    padding: 16px;
+    max-height: 88vh;
+    max-height: 88dvh;
+    border-radius: 18px;
+  }
+  .modal-header-sticky {
+    top: -16px;
+    padding: 12px 14px;
+    margin: -16px -16px 14px -16px;
+    border-top-left-radius: 18px;
+    border-top-right-radius: 18px;
+  }
+  .btn-primary, .btn-secondary, .btn-danger {
+    min-height: 42px;
+  }
+}
+
+/* Weekly Planning Grid Responsive Scroll */
+.weekly-planning-grid-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px;
+  border-radius: 14px;
+}
+
+.weekly-planning-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(145px, 1fr));
+  gap: 10px;
+  min-width: 980px;
+}
+
+@media (min-width: 1024px) {
+  .weekly-planning-grid {
+    min-width: auto;
+  }
+}
+
+.mobile-scroll-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #38bdf8;
+  font-weight: 600;
+  margin-bottom: 8px;
+  background: rgba(56, 189, 248, 0.1);
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+@media (min-width: 1024px) {
+  .mobile-scroll-hint {
+    display: none;
+  }
 }
 
 /* Custom Scrollbar */
@@ -263,3 +366,4 @@ input:-webkit-autofill:active {
     margin: 16px auto 24px !important;
   }
 }
+

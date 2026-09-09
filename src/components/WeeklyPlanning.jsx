@@ -657,7 +657,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
 
         {/* Tab di selezione Settore (Solo in modalità Planning Admin) */}
         {!isPersonalMode && isAdmin && (
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '4px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '6px', scrollbarWidth: 'none' }}>
             {SECTORS.map(sec => {
               const isActive = activeSector === sec.id;
               const countEmps = employeesList.filter(emp => getEmpMansioni(emp).includes(sec.id)).length;
@@ -666,30 +666,31 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                   key={sec.id}
                   onClick={() => setActiveSector(sec.id)}
                   style={{
-                    flex: 1,
-                    minWidth: '130px',
-                    padding: '12px 16px',
+                    flex: '1 0 auto',
+                    minWidth: '110px',
+                    padding: '10px 14px',
                     borderRadius: '12px',
                     border: isActive ? `2px solid ${sec.color}` : '1px solid rgba(255, 255, 255, 0.08)',
                     background: isActive ? `${sec.color}22` : 'rgba(15, 23, 42, 0.6)',
                     color: isActive ? '#f8fafc' : '#94a3b8',
                     fontWeight: isActive ? 700 : 500,
-                    fontSize: '0.9rem',
+                    fontSize: '0.88rem',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justify: 'center',
-                    gap: '8px',
-                    transition: 'all 0.2s'
+                    gap: '6px',
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap'
                   }}
                 >
-                  <span style={{ fontSize: '1.1rem' }}>{sec.icon}</span>
+                  <span style={{ fontSize: '1.05rem' }}>{sec.icon}</span>
                   <span>{sec.label}</span>
                   <span style={{
                     fontSize: '0.7rem',
                     background: isActive ? sec.color : 'rgba(255,255,255,0.1)',
                     color: isActive ? '#0f172a' : '#94a3b8',
-                    padding: '2px 7px',
+                    padding: '2px 6px',
                     borderRadius: '10px',
                     fontWeight: 800
                   }}>
@@ -731,28 +732,28 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
             borderRadius: '12px',
             border: '1px solid rgba(255, 255, 255, 0.08)'
           }}>
-            <span style={{ fontSize: '0.82rem', color: '#94a3b8', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '0.82rem', color: '#94a3b8', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
               ⚡ Assegna turni per <strong style={{ color: currentSectorObj.color }}>{currentSectorObj.icon} {currentSectorObj.label}</strong> e pubblica/esporta
             </span>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', width: '100%', justifyContent: 'flex-start' }}>
               <button
                 onClick={() => handleWhatsAppShare(activeSector)}
                 className="btn-primary"
-                style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', fontSize: '0.85rem', padding: '10px 16px' }}
+                style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', fontSize: '0.82rem', padding: '9px 14px', flex: '1 1 auto' }}
               >
-                <Send size={16} />
-                Condividi {currentSectorObj.label} su WhatsApp
+                <Send size={15} />
+                Condividi {currentSectorObj.label} WhatsApp
               </button>
 
               <button
                 onClick={() => handlePublishPlanning(activeSector)}
                 disabled={saving}
                 className="btn-primary"
-                style={{ fontSize: '0.85rem', padding: '10px 16px', opacity: saving ? 0.6 : 1 }}
+                style={{ fontSize: '0.82rem', padding: '9px 14px', opacity: saving ? 0.6 : 1, flex: '1 1 auto' }}
               >
-                <CheckCircle2 size={16} />
-                {saving ? 'Salvataggio...' : `Pubblica Planning ${currentSectorObj.label}`}
+                <CheckCircle2 size={15} />
+                {saving ? 'Salvataggio...' : `Pubblica ${currentSectorObj.label}`}
               </button>
             </div>
           </div>
@@ -764,11 +765,12 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
           </div>
         ) : (
           /* GRIGLIA BOX 1 (DISPONIBILITÀ PERSONALI O PANNELLO ADMIN DEL SETTORE) */
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-            gap: '12px'
-          }}>
+          <React.Fragment>
+            <div className="mobile-scroll-hint">
+              ← Scorri orizzontalmente per vedere tutti i 7 giorni (Lunedì - Domenica) →
+            </div>
+            <div className="weekly-planning-grid-container">
+              <div className="weekly-planning-grid">
             {weekDays.map(day => (
               <div key={day.dateStr} style={{
                 background: day.isTuesday ? 'rgba(15, 23, 42, 0.35)' : 'rgba(15, 23, 42, 0.6)',
@@ -1044,10 +1046,11 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                     )}
                   </div>
                 )}
-
               </div>
             ))}
           </div>
+        </div>
+      </React.Fragment>
         )}
       </div>
 
@@ -1110,121 +1113,122 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
           </div>
 
           {/* Griglia Box 2: Turni Confermati per ogni giorno e settore */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-            gap: '12px'
-          }}>
-            {weekDays.map(day => (
-              <div key={day.dateStr} style={{
-                background: day.isTuesday ? 'rgba(15, 23, 42, 0.35)' : 'rgba(15, 23, 42, 0.6)',
-                borderRadius: '14px',
-                padding: '12px',
-                border: day.isTuesday ? '1px solid rgba(255, 255, 255, 0.04)' : '1px solid rgba(255, 255, 255, 0.08)',
-                opacity: day.isTuesday ? 0.65 : 1,
-                display: 'flex',
-                flexDirection: 'column',
-                justify: 'space-between'
-              }}>
-                {/* Header Giorno */}
-                <div style={{ textAlign: 'center', paddingBottom: '8px', marginBottom: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: day.isTuesday ? '#64748b' : '#38bdf8', letterSpacing: '0.5px', display: 'block' }}>
-                    {day.dayName}
-                  </span>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>
-                    {day.dayFormatted}
-                  </span>
-                </div>
-
-                {day.isTuesday ? (
-                  <div style={{
-                    padding: '24px 8px',
-                    textAlign: 'center',
-                    background: 'rgba(30, 41, 59, 0.3)',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255, 255, 255, 0.04)',
-                    color: '#64748b',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    letterSpacing: '0.5px'
-                  }}>
-                    🔒 CHIUSO
+          <div className="mobile-scroll-hint">
+            ← Scorri orizzontalmente per vedere tutti i 7 giorni del planning confermato →
+          </div>
+          <div className="weekly-planning-grid-container">
+            <div className="weekly-planning-grid">
+              {weekDays.map(day => (
+                <div key={day.dateStr} style={{
+                  background: day.isTuesday ? 'rgba(15, 23, 42, 0.35)' : 'rgba(15, 23, 42, 0.6)',
+                  borderRadius: '14px',
+                  padding: '12px',
+                  border: day.isTuesday ? '1px solid rgba(255, 255, 255, 0.04)' : '1px solid rgba(255, 255, 255, 0.08)',
+                  opacity: day.isTuesday ? 0.65 : 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justify: 'space-between'
+                }}>
+                  {/* Header Giorno */}
+                  <div style={{ textAlign: 'center', paddingBottom: '8px', marginBottom: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: day.isTuesday ? '#64748b' : '#38bdf8', letterSpacing: '0.5px', display: 'block' }}>
+                      {day.dayName}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>
+                      {day.dayFormatted}
+                    </span>
                   </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {['pranzo', 'cena'].map(turno => {
-                      if (day.isSunday && turno === 'pranzo') {
-                        /* Spacer invisibile la Domenica a Pranzo */
-                        return (
-                          <div key="sunday-pranzo-spacer-box2" style={{ visibility: 'hidden', padding: '6px 8px', borderRadius: '6px' }}>
-                            <div style={{ fontSize: '0.68rem', fontWeight: 700 }}>
-                              <Sun size={11} /> Pranzo
+
+                  {day.isTuesday ? (
+                    <div style={{
+                      padding: '24px 8px',
+                      textAlign: 'center',
+                      background: 'rgba(30, 41, 59, 0.3)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255, 255, 255, 0.04)',
+                      color: '#64748b',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.5px'
+                    }}>
+                      🔒 CHIUSO
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {['pranzo', 'cena'].map(turno => {
+                        if (day.isSunday && turno === 'pranzo') {
+                          /* Spacer invisibile la Domenica a Pranzo */
+                          return (
+                            <div key="sunday-pranzo-spacer-box2" style={{ visibility: 'hidden', padding: '6px 8px', borderRadius: '6px' }}>
+                              <div style={{ fontSize: '0.68rem', fontWeight: 700 }}>
+                                <Sun size={11} /> Pranzo
+                              </div>
                             </div>
+                          );
+                        }
+
+                        const hasAnyAssignedInTurno = SECTORS.some(sec =>
+                          employeesList.some(emp => isAssigned(emp, day.dateStr, turno, sec.id))
+                        );
+
+                        return (
+                          <div key={turno} style={{
+                            background: 'rgba(30, 41, 59, 0.5)',
+                            padding: '6px 8px',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(255, 255, 255, 0.05)'
+                          }}>
+                            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: turno === 'pranzo' ? '#fbbf24' : '#a5b4fc', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+                              {turno === 'pranzo' ? <Sun size={11} /> : <Moon size={11} />}
+                              <span style={{ textTransform: 'capitalize' }}>{turno}</span>
+                            </div>
+
+                            {!hasAnyAssignedInTurno ? (
+                              <span style={{ fontSize: '0.68rem', color: '#475569', fontStyle: 'italic', display: 'block' }}>
+                                Nessuno
+                              </span>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {SECTORS.map(sec => {
+                                  const secAssignedEmps = employeesList.filter(emp => isAssigned(emp, day.dateStr, turno, sec.id));
+                                  if (secAssignedEmps.length === 0) return null;
+
+                                  return (
+                                    <div key={sec.id} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                      <span style={{ fontSize: '0.62rem', fontWeight: 700, color: sec.color }}>
+                                        {sec.icon} {sec.label}:
+                                      </span>
+                                      {secAssignedEmps.map(emp => (
+                                        <div key={emp.id} style={{
+                                          fontSize: '0.68rem',
+                                          fontWeight: 700,
+                                          color: '#34d399',
+                                          background: 'rgba(16, 185, 129, 0.18)',
+                                          padding: '2px 5px',
+                                          borderRadius: '4px',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justify: 'space-between'
+                                        }}>
+                                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {emp.alias ? `${emp.nome} (${emp.alias})` : emp.nome}
+                                          </span>
+                                          <span>✓</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                         );
-                      }
-
-                      const hasAnyAssignedInTurno = SECTORS.some(sec =>
-                        employeesList.some(emp => isAssigned(emp, day.dateStr, turno, sec.id))
-                      );
-
-                      return (
-                        <div key={turno} style={{
-                          background: 'rgba(30, 41, 59, 0.5)',
-                          padding: '6px 8px',
-                          borderRadius: '6px',
-                          border: '1px solid rgba(255, 255, 255, 0.05)'
-                        }}>
-                          <div style={{ fontSize: '0.68rem', fontWeight: 700, color: turno === 'pranzo' ? '#fbbf24' : '#a5b4fc', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
-                            {turno === 'pranzo' ? <Sun size={11} /> : <Moon size={11} />}
-                            <span style={{ textTransform: 'capitalize' }}>{turno}</span>
-                          </div>
-
-                          {!hasAnyAssignedInTurno ? (
-                            <span style={{ fontSize: '0.68rem', color: '#475569', fontStyle: 'italic', display: 'block' }}>
-                              Nessuno
-                            </span>
-                          ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              {SECTORS.map(sec => {
-                                const secAssignedEmps = employeesList.filter(emp => isAssigned(emp, day.dateStr, turno, sec.id));
-                                if (secAssignedEmps.length === 0) return null;
-
-                                return (
-                                  <div key={sec.id} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                    <span style={{ fontSize: '0.62rem', fontWeight: 700, color: sec.color }}>
-                                      {sec.icon} {sec.label}:
-                                    </span>
-                                    {secAssignedEmps.map(emp => (
-                                      <div key={emp.id} style={{
-                                        fontSize: '0.68rem',
-                                        fontWeight: 700,
-                                        color: '#34d399',
-                                        background: 'rgba(16, 185, 129, 0.18)',
-                                        padding: '2px 5px',
-                                        borderRadius: '4px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justify: 'space-between'
-                                      }}>
-                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                          {emp.alias ? `${emp.nome} (${emp.alias})` : emp.nome}
-                                        </span>
-                                        <span>✓</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ))}
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
 
         </div>

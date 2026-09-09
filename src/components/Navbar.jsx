@@ -45,7 +45,18 @@ export default function Navbar({ onOpenSetup, adminActiveTab, setAdminActiveTab 
 
           {/* Integrated Tab Switcher */}
           {user && setAdminActiveTab && (
-            <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '4px', borderRadius: '12px', display: 'flex', gap: '4px', border: '1px solid rgba(255, 255, 255, 0.1)', flexWrap: 'wrap' }}>
+            <div style={{
+              background: 'rgba(15, 23, 42, 0.6)',
+              padding: '4px',
+              borderRadius: '12px',
+              display: 'flex',
+              gap: '4px',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              overflowX: 'auto',
+              maxWidth: '100%',
+              scrollbarWidth: 'none',
+              WebkitOverflowScrolling: 'touch'
+            }}>
               
               {/* Tab 1 (Mensile Personale): I Miei Turni */}
               <button
@@ -63,6 +74,8 @@ export default function Navbar({ onOpenSetup, adminActiveTab, setAdminActiveTab 
                   alignItems: 'center',
                   gap: '6px',
                   fontSize: '0.8rem',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
                   transition: 'all 0.2s'
                 }}
               >
@@ -87,6 +100,8 @@ export default function Navbar({ onOpenSetup, adminActiveTab, setAdminActiveTab 
                     alignItems: 'center',
                     gap: '6px',
                     fontSize: '0.8rem',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
                     transition: 'all 0.2s'
                   }}
                 >
@@ -111,6 +126,8 @@ export default function Navbar({ onOpenSetup, adminActiveTab, setAdminActiveTab 
                   alignItems: 'center',
                   gap: '6px',
                   fontSize: '0.8rem',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
                   transition: 'all 0.2s'
                 }}
               >
@@ -135,6 +152,8 @@ export default function Navbar({ onOpenSetup, adminActiveTab, setAdminActiveTab 
                     alignItems: 'center',
                     gap: '6px',
                     fontSize: '0.8rem',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
                     transition: 'all 0.2s'
                   }}
                 >

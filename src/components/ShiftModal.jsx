@@ -7,6 +7,17 @@ export default function ShiftModal({ isOpen, date, existingShifts, onSave, onDel
   const [note, setNote] = useState('');
 
   useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
     if (existingShifts && existingShifts.length > 0) {
       setHasPranzo(existingShifts.some((s) => s.turno === 'pranzo'));
       setHasCena(existingShifts.some((s) => s.turno === 'cena'));
@@ -41,20 +52,35 @@ export default function ShiftModal({ isOpen, date, existingShifts, onSave, onDel
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="glass-card modal-content" onClick={(e) => e.stopPropagation()} style={{ padding: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+      <div className="glass-card modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header-sticky">
           <div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f8fafc', textTransform: 'capitalize' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc', textTransform: 'capitalize', margin: 0 }}>
               {formattedDate}
             </h3>
             {employeeName && (
-              <p style={{ fontSize: '0.85rem', color: '#38bdf8', marginTop: '2px' }}>
+              <p style={{ fontSize: '0.8rem', color: '#38bdf8', marginTop: '2px', margin: 0 }}>
                 Dipendente: <strong>{employeeName}</strong>
               </p>
             )}
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
-            <X size={24} />
+          <button
+            onClick={onClose}
+            aria-label="Chiudi"
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: 'none',
+              color: '#94a3b8',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer'
+            }}
+          >
+            <X size={20} />
           </button>
         </div>
 
