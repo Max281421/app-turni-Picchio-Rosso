@@ -393,51 +393,58 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         return getEmpMansioni(emp).includes(targetSector);
       });
 
-      let existingShifts = [];
+      // Controlla se la colonna mansione esiste nel DB Supabase
       let hasMansioneColumn = true;
-
-      const { data: eShifts, error: fetchErr } = await supabase
+      const { error: testErr } = await supabase
         .from('planned_shifts')
-        .select('*')
-        .gte('data', weekStartStr)
-        .lte('data', weekEndStr)
-        .eq('mansione', targetSector);
+        .select('mansione')
+        .limit(1);
 
-      if (fetchErr) {
-        if (fetchErr.code === 'PGRST205' || fetchErr.message?.includes('schema cache') || fetchErr.message?.includes('relation "public.planned_shifts" does not exist')) {
-          throw new Error('Tabella "planned_shifts" assente sul database. Esegui il file SQL schema_planned_shifts.sql nella dashboard Supabase -> SQL Editor.');
-        }
-        if (fetchErr.code === 'PGRST204' || fetchErr.message?.includes('mansione') || fetchErr.code === '42703') {
-          hasMansioneColumn = false;
-          const { data: fallbackShifts, error: fallbackErr } = await supabase
-            .from('planned_shifts')
-            .select('*')
-            .gte('data', weekStartStr)
-            .lte('data', weekEndStr);
-          if (fallbackErr) throw fallbackErr;
-          existingShifts = fallbackShifts || [];
-        } else {
-          throw fetchErr;
-        }
-      } else {
-        existingShifts = eShifts || [];
+      if (testErr && (testErr.code === 'PGRST204' || testErr.message?.includes('mansione') || testErr.code === '42703')) {
+        hasMansioneColumn = false;
       }
 
-      // Carica eventuale mappa locale salvata
+      // 1. Cancellazione pulita di TUTTI i turni precedenti del settore target per questa settimana
+      if (hasMansioneColumn) {
+        const { error: clearErr } = await supabase
+          .from('planned_shifts')
+          .delete()
+          .gte('data', weekStartStr)
+          .lte('data', weekEndStr)
+          .eq('mansione', targetSector);
+
+        if (clearErr && clearErr.code === '42501') {
+          throw new Error('Permessi insufficienti su planned_shifts (Errore 42501). Esegui il file SQL schema_planned_shifts.sql aggiornato su Supabase per concedere le GRANT.');
+        }
+      } else {
+        // Fallback per DB senza colonna mansione: elimina i turni dei dipendenti di questo settore per la settimana
+        for (const emp of sectorEmployees) {
+          const empDbId = empIdMap.get(emp.id) || empIdMap.get(emp.auth_user_id) || emp.id;
+          await supabase
+            .from('planned_shifts')
+            .delete()
+            .gte('data', weekStartStr)
+            .lte('data', weekEndStr)
+            .or(`employee_id.eq.${empDbId},employee_id.eq.${emp.id}${emp.auth_user_id ? `,employee_id.eq.${emp.auth_user_id}` : ''}`);
+        }
+      }
+
+      // 2. Aggiorna la mappa LocalStorage backup
       let localPlannedMap = {};
       try {
         const savedLocal = localStorage.getItem(`APP_TURNI_PLANNED_MAP_${weekStartStr}`);
         if (savedLocal) localPlannedMap = JSON.parse(savedLocal) || {};
       } catch (e) {}
 
-      const existingMap = new Map();
-      existingShifts.forEach(s => {
-        const sec = s.mansione || (localPlannedMap[`${s.employee_id}_${s.data}_${s.turno}_${targetSector}`] ? targetSector : 'cassa');
-        existingMap.set(`${s.employee_id}_${s.data}_${s.turno}_${sec}`, s.id);
+      // Pulisci tutte le chiavi precedenti di questo settore per la settimana
+      Object.keys(localPlannedMap).forEach(key => {
+        if (key.endsWith(`_${targetSector}`)) {
+          delete localPlannedMap[key];
+        }
       });
 
+      // 3. Costruisci i nuovi inserimenti e popola la mappa locale
       const rawInsert = [];
-      const toDeleteIds = [];
 
       for (const day of weekDays) {
         if (day.isTuesday) continue;
@@ -448,26 +455,16 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
             if (day.isSunday && turno === 'pranzo') continue;
 
             const isAssignedShift = isAssigned(emp, day.dateStr, turno, targetSector);
-            const existingId = existingMap.get(`${targetEmpDbId}_${day.dateStr}_${turno}_${targetSector}`) ||
-                               existingMap.get(`${emp.id}_${day.dateStr}_${turno}_${targetSector}`) ||
-                               (emp.auth_user_id ? existingMap.get(`${emp.auth_user_id}_${day.dateStr}_${turno}_${targetSector}`) : null);
-
-            // Aggiorna anche il LocalStorage backup per la settimana e settore corrente
-            const k1 = `${targetEmpDbId}_${day.dateStr}_${turno}_${targetSector}`;
-            const k2 = `${emp.id}_${day.dateStr}_${turno}_${targetSector}`;
-            const k3 = emp.auth_user_id ? `${emp.auth_user_id}_${day.dateStr}_${turno}_${targetSector}` : null;
 
             if (isAssignedShift) {
+              const k1 = `${targetEmpDbId}_${day.dateStr}_${turno}_${targetSector}`;
+              const k2 = `${emp.id}_${day.dateStr}_${turno}_${targetSector}`;
+              const k3 = emp.auth_user_id ? `${emp.auth_user_id}_${day.dateStr}_${turno}_${targetSector}` : null;
+
               localPlannedMap[k1] = true;
               localPlannedMap[k2] = true;
               if (k3) localPlannedMap[k3] = true;
-            } else {
-              delete localPlannedMap[k1];
-              delete localPlannedMap[k2];
-              if (k3) delete localPlannedMap[k3];
-            }
 
-            if (isAssignedShift && !existingId) {
               const insertObj = {
                 employee_id: targetEmpDbId,
                 data: day.dateStr,
@@ -475,8 +472,6 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
               };
               if (hasMansioneColumn) insertObj.mansione = targetSector;
               rawInsert.push(insertObj);
-            } else if (!isAssignedShift && existingId) {
-              toDeleteIds.push(existingId);
             }
           }
         }
@@ -493,18 +488,6 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
           toInsert.push(item);
-        }
-      }
-
-      const uniqueDeleteIds = Array.from(new Set(toDeleteIds));
-
-      if (uniqueDeleteIds.length > 0) {
-        const { error: delErr } = await supabase.from('planned_shifts').delete().in('id', uniqueDeleteIds);
-        if (delErr) {
-          if (delErr.code === '42501') {
-            throw new Error('Permessi insufficienti su planned_shifts (Errore 42501). Esegui il file SQL schema_planned_shifts.sql aggiornato su Supabase per concedere le GRANT.');
-          }
-          throw delErr;
         }
       }
 
