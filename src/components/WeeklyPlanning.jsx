@@ -354,8 +354,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
 
       // Filtra i dipendenti abilitati a questo settore
       const sectorEmployees = employeesList.filter(emp => {
-        if (emp.mansioni && Array.isArray(emp.mansioni)) return emp.mansioni.includes(targetSector);
-        return true;
+        return getEmpMansioni(emp).includes(targetSector);
       });
 
       const { data: existingShifts, error: fetchErr } = await supabase
@@ -491,12 +490,25 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
     sharePlanningToWhatsApp(weekDaysArray, employeesList, targetSector);
   };
 
+  const getEmpMansioni = (emp) => {
+    const isSelf = activeEmployee && (
+      emp.id === activeEmployee.id ||
+      emp.auth_user_id === activeEmployee.auth_user_id ||
+      emp.id === activeEmployee.auth_user_id ||
+      emp.auth_user_id === activeEmployee.id
+    );
+    const target = isSelf && activeEmployee.mansioni ? activeEmployee.mansioni : emp.mansioni;
+    if (target && Array.isArray(target) && target.length > 0) {
+      return target;
+    }
+    return ['cassa', 'fattorino', 'pizzeria'];
+  };
+
   const currentSectorObj = SECTORS.find(s => s.id === activeSector) || SECTORS[0];
 
   // Dipendenti abilitati per il settore attualmente selezionato
   const activeSectorEmployees = employeesList.filter(emp => {
-    if (emp.mansioni && Array.isArray(emp.mansioni)) return emp.mansioni.includes(activeSector);
-    return true;
+    return getEmpMansioni(emp).includes(activeSector);
   });
 
   return (
@@ -566,7 +578,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
           <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '4px' }}>
             {SECTORS.map(sec => {
               const isActive = activeSector === sec.id;
-              const countEmps = employeesList.filter(emp => !emp.mansioni || emp.mansioni.includes(sec.id)).length;
+              const countEmps = employeesList.filter(emp => getEmpMansioni(emp).includes(sec.id)).length;
               return (
                 <button
                   key={sec.id}

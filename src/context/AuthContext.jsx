@@ -205,7 +205,7 @@ export function AuthProvider({ children }) {
       const { data, error } = await supabase
         .from('employees')
         .update({ ruolo: newRole })
-        .eq('id', employeeId)
+        .or(`id.eq.${employeeId},auth_user_id.eq.${employeeId}`)
         .select()
         .maybeSingle();
 
@@ -241,7 +241,7 @@ export function AuthProvider({ children }) {
       const { data, error } = await supabase
         .from('employees')
         .update({ nome: trimmedName })
-        .eq('id', employeeId)
+        .or(`id.eq.${employeeId},auth_user_id.eq.${employeeId}`)
         .select()
         .maybeSingle();
 
@@ -271,7 +271,7 @@ export function AuthProvider({ children }) {
       const { data, error } = await supabase
         .from('employees')
         .update({ alias: trimmedAlias })
-        .eq('id', employeeId)
+        .or(`id.eq.${employeeId},auth_user_id.eq.${employeeId}`)
         .select()
         .maybeSingle();
 
@@ -305,7 +305,7 @@ export function AuthProvider({ children }) {
       const { data, error } = await supabase
         .from('employees')
         .update({ mansioni: formattedMansioni })
-        .eq('id', employeeId)
+        .or(`id.eq.${employeeId},auth_user_id.eq.${employeeId}`)
         .select()
         .maybeSingle();
 

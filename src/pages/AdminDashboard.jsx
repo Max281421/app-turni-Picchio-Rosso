@@ -5,7 +5,7 @@ import MonthPicker from '../components/MonthPicker';
 import ShiftModal from '../components/ShiftModal';
 import { exportShiftsToExcel } from '../lib/excelExport';
 import { exportSummaryToPDF, exportGridToPDF } from '../lib/pdfExport';
-import { FileSpreadsheet, FileText, Users, Sun, Moon, Calendar as CalendarIcon, Search, UserCheck, ChevronDown, ChevronUp, Plus, Edit2 } from 'lucide-react';
+import { FileSpreadsheet, FileText, Users, Sun, Moon, Calendar as CalendarIcon, Search, UserCheck, ChevronDown, ChevronUp, Plus, Edit2, X } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { updateEmployeeRole, updateEmployeeName, updateEmployeeMansioni, deleteAccount } = useAuth();
@@ -19,6 +19,11 @@ export default function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const [expandedEmpId, setExpandedEmpId] = useState(null);
+
+  // Edit Sector Modal for Admin
+  const [editingSectorEmp, setEditingSectorEmp] = useState(null);
+  const [editingSectorMansioni, setEditingSectorMansioni] = useState([]);
+  const [savingSectors, setSavingSectors] = useState(false);
 
   // Edit Modal for Admin
   const [selectedDate, setSelectedDate] = useState(null);
@@ -329,19 +334,13 @@ export default function AdminDashboard() {
 
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <button
-                          onClick={async () => {
-                            const current = emp.mansioni || ['cassa', 'fattorino', 'pizzeria'];
-                            const wantsCassa = confirm(`Ruoli operativi attuali di ${emp.nome}:\n${current.join(', ')}\n\nAbilitare ruolo CASSA (💵)?`);
-                            const wantsFattorino = confirm(`Abilitare ruolo FATTORINO (🛵)?`);
-                            const wantsPizzeria = confirm(`Abilitare ruolo PIZZERIA (🍕)?`);
-                            const newMans = [];
-                            if (wantsCassa) newMans.push('cassa');
-                            if (wantsFattorino) newMans.push('fattorino');
-                            if (wantsPizzeria) newMans.push('pizzeria');
-                            if (newMans.length === 0) newMans.push('pizzeria');
-                            
-                            await updateEmployeeMansioni(emp.id, newMans);
-                            await fetchAdminData();
+                          onClick={() => {
+                            setEditingSectorEmp(emp);
+                            setEditingSectorMansioni(
+                              emp.mansioni && Array.isArray(emp.mansioni) && emp.mansioni.length > 0
+                                ? emp.mansioni
+                                : ['cassa', 'fattorino', 'pizzeria']
+                            );
                           }}
                           className="btn-secondary"
                           style={{ padding: '6px 12px', fontSize: '0.8rem' }}
@@ -473,6 +472,119 @@ export default function AdminDashboard() {
         onDelete={handleDeleteShiftAdmin}
         onClose={() => setIsModalOpen(false)}
       />
+
+      {/* Modal Modifica Settori Operativi per Admin */}
+      {editingSectorEmp && (
+        <div className="modal-overlay" onClick={() => setEditingSectorEmp(null)} style={{ zIndex: 1000 }}>
+          <div className="glass-card modal-content" onClick={(e) => e.stopPropagation()} style={{ padding: '24px', maxWidth: '440px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#f8fafc' }}>
+                  Settori Operativi Pizzeria
+                </h3>
+                <span style={{ fontSize: '0.85rem', color: '#38bdf8', fontWeight: 600 }}>
+                  {editingSectorEmp.nome} {editingSectorEmp.alias ? `(${editingSectorEmp.alias})` : ''}
+                </span>
+              </div>
+              <button onClick={() => setEditingSectorEmp(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}>
+                <X size={22} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '20px' }}>
+              Seleziona uno o più settori in cui questo dipendente potrà operare durante la pianificazione settimanale.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
+              {[
+                { id: 'cassa', label: 'Cassa', icon: '💵', color: '#10b981' },
+                { id: 'fattorino', label: 'Fattorino', icon: '🛵', color: '#38bdf8' },
+                { id: 'pizzeria', label: 'Pizzeria', icon: '🍕', color: '#f59e0b' }
+              ].map(sec => {
+                const isSelected = editingSectorMansioni.includes(sec.id);
+                return (
+                  <button
+                    key={sec.id}
+                    type="button"
+                    onClick={() => {
+                      setEditingSectorMansioni(prev => {
+                        if (prev.includes(sec.id)) {
+                          if (prev.length === 1) return prev;
+                          return prev.filter(m => m !== sec.id);
+                        } else {
+                          return [...prev, sec.id];
+                        }
+                      });
+                    }}
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '12px',
+                      border: isSelected ? `2px solid ${sec.color}` : '1px solid rgba(255, 255, 255, 0.08)',
+                      background: isSelected ? `${sec.color}22` : 'rgba(15, 23, 42, 0.6)',
+                      color: isSelected ? '#f8fafc' : '#94a3b8',
+                      fontWeight: 600,
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justify: 'space-between',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '1.2rem' }}>{sec.icon}</span>
+                      {sec.label}
+                    </span>
+                    <span style={{
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      color: isSelected ? sec.color : '#64748b',
+                      background: isSelected ? 'rgba(255,255,255,0.1)' : 'transparent',
+                      padding: '4px 8px',
+                      borderRadius: '6px'
+                    }}>
+                      {isSelected ? 'Abilitato ✓' : 'Disabilitato'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setEditingSectorEmp(null)}
+                className="btn-secondary"
+                style={{ padding: '8px 14px', fontSize: '0.85rem' }}
+              >
+                Annulla
+              </button>
+              <button
+                disabled={savingSectors}
+                onClick={async () => {
+                  setSavingSectors(true);
+                  try {
+                    await updateEmployeeMansioni(editingSectorEmp.id, editingSectorMansioni);
+                    if (editingSectorEmp.auth_user_id && editingSectorEmp.auth_user_id !== editingSectorEmp.id) {
+                      await updateEmployeeMansioni(editingSectorEmp.auth_user_id, editingSectorMansioni);
+                    }
+                    await fetchAdminData();
+                    setEditingSectorEmp(null);
+                  } catch (err) {
+                    console.error(err);
+                    alert('Errore durante il salvataggio dei settori.');
+                  } finally {
+                    setSavingSectors(false);
+                  }
+                }}
+                className="btn-primary"
+                style={{ padding: '8px 18px', fontSize: '0.85rem' }}
+              >
+                {savingSectors ? 'Salvataggio...' : 'Salva Settori'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
