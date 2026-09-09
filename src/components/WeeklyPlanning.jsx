@@ -853,8 +853,49 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                 Turni Confermati dall'Admin
               </h3>
               <p style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '4px' }}>
-                Visualizza i turni di Pranzo e Cena confermati per la settimana ({weekDays[0].dayFormatted} - {weekDays[6].dayFormatted}). Usa le frecce in alto per consultare lo storico delle settimane passate!
+                Visualizza i turni di Pranzo e Cena confermati per la settimana ({weekDays[0].dayFormatted} - {weekDays[6].dayFormatted}). Usa le frecce per consultare lo storico delle settimane passate!
               </p>
+            </div>
+
+            {/* Controlli Settimana Box 2 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(15, 23, 42, 0.6)', padding: '6px 12px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+              <button
+                onClick={handlePrevWeek}
+                className="btn-secondary"
+                style={{ padding: '6px 10px' }}
+                title="Settimana precedente"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              
+              <button
+                onClick={handleTodayWeek}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  color: '#38bdf8',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  cursor: 'pointer'
+                }}
+              >
+                Oggi
+              </button>
+
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc', padding: '0 8px', minWidth: '130px', textAlign: 'center' }}>
+                {weekDays[0].dayFormatted} - {weekDays[6].dayFormatted}
+              </span>
+
+              <button
+                onClick={handleNextWeek}
+                className="btn-secondary"
+                style={{ padding: '6px 10px' }}
+                title="Settimana successiva"
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
           </div>
 
