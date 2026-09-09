@@ -333,8 +333,24 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
     }
   };
 
+  // Helper per trovare il settore in cui un dipendente è eventualmente già stato assegnato per la data ed il turno
+  const getAssignedSector = (emp, dateStr, turno) => {
+    if (!emp) return null;
+    for (const sec of SECTORS) {
+      if (isAssigned(emp, dateStr, turno, sec.id)) {
+        return sec;
+      }
+    }
+    return null;
+  };
+
   // Toggle Assegnazione Turno (Lato Admin per il settore attivo)
   const toggleShiftAssignment = (emp, dateStr, turno, targetSector = activeSector) => {
+    const assignedSec = getAssignedSector(emp, dateStr, turno);
+    if (assignedSec && assignedSec.id !== targetSector) {
+      return; // Un dipendente può essere assegnato a 1 solo settore per lo stesso turno (Pranzo o Cena)
+    }
+
     const empId = emp.id;
     const authId = emp.auth_user_id;
 
@@ -494,11 +510,28 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
 
       if (toInsert.length > 0) {
         let { error: insErr } = await supabase.from('planned_shifts').insert(toInsert);
+
         if (insErr && (insErr.code === 'PGRST204' || insErr.message?.includes('mansione') || insErr.code === '42703')) {
           const fallbackPayload = toInsert.map(({ mansione, ...rest }) => rest);
           const { error: retryErr } = await supabase.from('planned_shifts').insert(fallbackPayload);
           insErr = retryErr;
         }
+
+        if (insErr && (insErr.code === '23505' || insErr.message?.includes('unique constraint') || insErr.message?.includes('duplicate key'))) {
+          // Se nel DB c'era un vecchio vincolo univoco (employee_id, data, turno), sovrascrivi cancellando prima i vecchi turni in conflitto
+          for (const item of toInsert) {
+            await supabase
+              .from('planned_shifts')
+              .delete()
+              .eq('employee_id', item.employee_id)
+              .eq('data', item.data)
+              .eq('turno', item.turno);
+          }
+          const payload = hasMansioneColumn ? toInsert : toInsert.map(({ mansione, ...rest }) => rest);
+          const { error: retryErr2 } = await supabase.from('planned_shifts').insert(payload);
+          insErr = retryErr2;
+        }
+
         if (insErr) {
           if (insErr.code === '42501') {
             throw new Error('Permessi insufficienti su planned_shifts (Errore 42501). Esegui il file SQL schema_planned_shifts.sql aggiornato su Supabase per concedere le GRANT.');
@@ -950,13 +983,16 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                                 activeSectorEmployees.map(emp => {
                                   const empAvail = isAvailable(emp, day.dateStr, turno);
                                   const empAssigned = isAssigned(emp, day.dateStr, turno, activeSector);
+                                  const otherSector = getAssignedSector(emp, day.dateStr, turno);
+                                  const isAssignedOtherSector = otherSector && otherSector.id !== activeSector;
 
                                   return (
                                     <button
                                       key={emp.id}
                                       type="button"
-                                      onClick={() => isAdmin && toggleShiftAssignment(emp, day.dateStr, turno, activeSector)}
-                                      disabled={!isAdmin}
+                                      onClick={() => isAdmin && !isAssignedOtherSector && toggleShiftAssignment(emp, day.dateStr, turno, activeSector)}
+                                      disabled={!isAdmin || isAssignedOtherSector}
+                                      title={isAssignedOtherSector ? `Già assegnato in ${otherSector.label}` : ''}
                                       style={{
                                         width: '100%',
                                         textAlign: 'left',
@@ -966,18 +1002,25 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                                         fontWeight: empAssigned ? 700 : 500,
                                         border: empAssigned
                                           ? `1px solid ${currentSectorObj.color}`
+                                          : isAssignedOtherSector
+                                          ? '1px solid rgba(255, 255, 255, 0.05)'
                                           : '1px solid transparent',
                                         background: empAssigned
                                           ? `${currentSectorObj.color}33`
+                                          : isAssignedOtherSector
+                                          ? 'rgba(15, 23, 42, 0.3)'
                                           : empAvail
                                           ? 'rgba(51, 65, 85, 0.7)'
                                           : 'rgba(15, 23, 42, 0.4)',
                                         color: empAssigned
                                           ? '#f8fafc'
+                                          : isAssignedOtherSector
+                                          ? '#475569'
                                           : empAvail
                                           ? '#f8fafc'
                                           : '#64748b',
-                                        cursor: isAdmin ? 'pointer' : 'default',
+                                        cursor: (isAdmin && !isAssignedOtherSector) ? 'pointer' : 'not-allowed',
+                                        opacity: isAssignedOtherSector ? 0.55 : 1,
                                         display: 'flex',
                                         alignItems: 'center',
                                         justify: 'space-between',
@@ -988,7 +1031,12 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                                         {emp.alias ? `${emp.nome} (${emp.alias})` : emp.nome}
                                       </span>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        {empAvail && (
+                                        {isAssignedOtherSector && (
+                                          <span style={{ fontSize: '0.65rem', color: otherSector.color, fontWeight: 700 }}>
+                                            {otherSector.icon}
+                                          </span>
+                                        )}
+                                        {!isAssignedOtherSector && empAvail && (
                                           <span
                                             style={{
                                               width: '6px',
