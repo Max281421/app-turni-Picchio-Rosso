@@ -190,7 +190,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       }
       setAvailabilitiesMap(aMap);
 
-      // 2. Carica turni pianificati dalla nuova tabella planned_shifts
+      // 2. Carica turni pianificati dalla tabella planned_shifts (con fallback LocalStorage)
       let { data: plannedData, error: plannedErr } = await supabase
         .from('planned_shifts')
         .select('*')
@@ -202,26 +202,42 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         if (plannedErr.code === 'PGRST205') {
           setMessage({
             type: 'error',
-            text: '⚠️ Tabella "planned_shifts" assente sul database Supabase Beta. Esegui il file SQL schema_planned_shifts.sql nell\'SQL Editor della Dashboard Supabase.'
+            text: '⚠️ Tabella "planned_shifts" assente sul database Supabase. Esegui il file SQL schema_planned_shifts.sql nell\'SQL Editor della Dashboard Supabase.'
           });
         }
       }
 
-      const sMap = {};
+      let localPlannedMap = {};
+      try {
+        const savedLocal = localStorage.getItem(`APP_TURNI_PLANNED_MAP_${weekStartStr}`);
+        if (savedLocal) localPlannedMap = JSON.parse(savedLocal) || {};
+      } catch (e) {}
+
+      const sMap = { ...localPlannedMap };
+
       if (plannedData) {
         plannedData.forEach(item => {
-          const mans = item.mansione || 'pizzeria';
-          sMap[`${item.employee_id}_${item.data}_${item.turno}_${mans}`] = item.id;
-          sMap[`${item.employee_id}_${item.data}_${item.turno}`] = item.id;
-          const altId1 = empIdToAuthId.get(item.employee_id);
-          if (altId1) {
-            sMap[`${altId1}_${item.data}_${item.turno}_${mans}`] = item.id;
-            sMap[`${altId1}_${item.data}_${item.turno}`] = item.id;
-          }
-          const altId2 = authIdToEmpId.get(item.employee_id);
-          if (altId2) {
-            sMap[`${altId2}_${item.data}_${item.turno}_${mans}`] = item.id;
-            sMap[`${altId2}_${item.data}_${item.turno}`] = item.id;
+          if (item.mansione) {
+            sMap[`${item.employee_id}_${item.data}_${item.turno}_${item.mansione}`] = item.id;
+            const altId1 = empIdToAuthId.get(item.employee_id);
+            if (altId1) sMap[`${altId1}_${item.data}_${item.turno}_${item.mansione}`] = item.id;
+            const altId2 = authIdToEmpId.get(item.employee_id);
+            if (altId2) sMap[`${altId2}_${item.data}_${item.turno}_${item.mansione}`] = item.id;
+          } else {
+            // Se la colonna mansione è assente nel DB, ripristina la mappatura per settore da LocalStorage
+            SECTORS.forEach(sec => {
+              const k1 = `${item.employee_id}_${item.data}_${item.turno}_${sec.id}`;
+              const altId1 = empIdToAuthId.get(item.employee_id);
+              const k2 = altId1 ? `${altId1}_${item.data}_${item.turno}_${sec.id}` : null;
+              const altId2 = authIdToEmpId.get(item.employee_id);
+              const k3 = altId2 ? `${altId2}_${item.data}_${item.turno}_${sec.id}` : null;
+
+              if (localPlannedMap[k1] || (k2 && localPlannedMap[k2]) || (k3 && localPlannedMap[k3])) {
+                sMap[k1] = item.id;
+                if (k2) sMap[k2] = item.id;
+                if (k3) sMap[k3] = item.id;
+              }
+            });
           }
         });
       }
@@ -391,9 +407,17 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         existingShifts = eShifts || [];
       }
 
+      // Carica eventuale mappa locale salvata
+      let localPlannedMap = {};
+      try {
+        const savedLocal = localStorage.getItem(`APP_TURNI_PLANNED_MAP_${weekStartStr}`);
+        if (savedLocal) localPlannedMap = JSON.parse(savedLocal) || {};
+      } catch (e) {}
+
       const existingMap = new Map();
       existingShifts.forEach(s => {
-        existingMap.set(`${s.employee_id}_${s.data}_${s.turno}`, s.id);
+        const sec = s.mansione || (localPlannedMap[`${s.employee_id}_${s.data}_${s.turno}_${targetSector}`] ? targetSector : 'cassa');
+        existingMap.set(`${s.employee_id}_${s.data}_${s.turno}_${sec}`, s.id);
       });
 
       const rawInsert = [];
@@ -408,9 +432,24 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
             if (day.isSunday && turno === 'pranzo') continue;
 
             const isAssignedShift = isAssigned(emp, day.dateStr, turno, targetSector);
-            const existingId = existingMap.get(`${targetEmpDbId}_${day.dateStr}_${turno}`) ||
-                               existingMap.get(`${emp.id}_${day.dateStr}_${turno}`) ||
-                               (emp.auth_user_id ? existingMap.get(`${emp.auth_user_id}_${day.dateStr}_${turno}`) : null);
+            const existingId = existingMap.get(`${targetEmpDbId}_${day.dateStr}_${turno}_${targetSector}`) ||
+                               existingMap.get(`${emp.id}_${day.dateStr}_${turno}_${targetSector}`) ||
+                               (emp.auth_user_id ? existingMap.get(`${emp.auth_user_id}_${day.dateStr}_${turno}_${targetSector}`) : null);
+
+            // Aggiorna anche il LocalStorage backup per la settimana e settore corrente
+            const k1 = `${targetEmpDbId}_${day.dateStr}_${turno}_${targetSector}`;
+            const k2 = `${emp.id}_${day.dateStr}_${turno}_${targetSector}`;
+            const k3 = emp.auth_user_id ? `${emp.auth_user_id}_${day.dateStr}_${turno}_${targetSector}` : null;
+
+            if (isAssignedShift) {
+              localPlannedMap[k1] = true;
+              localPlannedMap[k2] = true;
+              if (k3) localPlannedMap[k3] = true;
+            } else {
+              delete localPlannedMap[k1];
+              delete localPlannedMap[k2];
+              if (k3) delete localPlannedMap[k3];
+            }
 
             if (isAssignedShift && !existingId) {
               const insertObj = {
@@ -426,6 +465,10 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
           }
         }
       }
+
+      try {
+        localStorage.setItem(`APP_TURNI_PLANNED_MAP_${weekStartStr}`, JSON.stringify(localPlannedMap));
+      } catch (e) {}
 
       const toInsert = [];
       const seenKeys = new Set();
