@@ -4,14 +4,18 @@ import { Sun, Moon, X, Check, Trash2 } from 'lucide-react';
 export default function ShiftModal({ isOpen, date, existingShifts, onSave, onDelete, onClose, employeeName }) {
   const [hasPranzo, setHasPranzo] = useState(false);
   const [hasCena, setHasCena] = useState(false);
+  const [note, setNote] = useState('');
 
   useEffect(() => {
-    if (existingShifts) {
+    if (existingShifts && existingShifts.length > 0) {
       setHasPranzo(existingShifts.some((s) => s.turno === 'pranzo'));
       setHasCena(existingShifts.some((s) => s.turno === 'cena'));
+      const foundNote = existingShifts.find((s) => s.note)?.note || '';
+      setNote(foundNote);
     } else {
       setHasPranzo(false);
       setHasCena(false);
+      setNote('');
     }
   }, [existingShifts, date]);
 
@@ -26,7 +30,7 @@ export default function ShiftModal({ isOpen, date, existingShifts, onSave, onDel
   });
 
   const handleSave = () => {
-    onSave(date, { pranzo: hasPranzo, cena: hasCena });
+    onSave(date, { pranzo: hasPranzo, cena: hasCena, note: note.trim() });
     onClose();
   };
 
@@ -105,6 +109,21 @@ export default function ShiftModal({ isOpen, date, existingShifts, onSave, onDel
             <span>Turno Cena</span>
             {hasCena && <Check size={16} color="#a5b4fc" />}
           </button>
+        </div>
+
+        {/* Input Note / Motivazione */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#38bdf8', display: 'block', marginBottom: '6px' }}>
+            📝 Note / Motivazione (opzionale):
+          </label>
+          <input
+            type="text"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="es. Sostituito Mario a cena, straordinario, ecc."
+            className="glass-input"
+            style={{ width: '100%', padding: '10px 14px', fontSize: '0.85rem' }}
+          />
         </div>
 
         {/* Action buttons */}

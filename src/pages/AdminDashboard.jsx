@@ -6,7 +6,7 @@ import ShiftModal from '../components/ShiftModal';
 import { exportShiftsToExcel } from '../lib/excelExport';
 import { exportSummaryToPDF, exportGridToPDF } from '../lib/pdfExport';
 import { parseMansioni } from '../lib/whatsappExport';
-import { FileSpreadsheet, FileText, Users, Sun, Moon, Calendar as CalendarIcon, Search, UserCheck, ChevronDown, ChevronUp, Plus, Edit2, X } from 'lucide-react';
+import { FileSpreadsheet, FileText, Users, Sun, Moon, Calendar as CalendarIcon, Search, UserCheck, ChevronDown, ChevronUp, Plus, Edit2, X, AlertTriangle } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { employee, updateEmployeeRole, updateEmployeeName, updateEmployeeMansioni, deleteAccount } = useAuth();
@@ -58,6 +58,7 @@ export default function AdminDashboard() {
       }));
       setEmployees(enrichedEmps);
 
+      // 1. Carica turni effettivi lavorati segnati dai dipendenti
       const { data: shiftData, error: shiftErr } = await supabase
         .from('shifts')
         .select('*')
@@ -65,7 +66,59 @@ export default function AdminDashboard() {
         .lte('data', endDate);
 
       if (shiftErr) console.error('Error fetching shifts:', shiftErr);
-      setShifts(shiftData || []);
+
+      // 2. Carica i turni pianificati ufficialmente dall'Admin per il controllo incrociato
+      let plannedSet = new Set();
+      try {
+        const { data: plannedData } = await supabase
+          .from('planned_shifts')
+          .select('*')
+          .gte('data', startDate)
+          .lte('data', endDate);
+
+        if (plannedData) {
+          plannedData.forEach(p => {
+            plannedSet.add(`${p.employee_id}_${p.data}_${p.turno}`);
+          });
+        }
+      } catch (pErr) {
+        console.warn('Error fetching planned_shifts for cross-check:', pErr);
+      }
+
+      // Integrazione con LocalStorage backup per le mappe settimanali dei planning
+      try {
+        for (let d = 1; d <= daysInMonth; d += 7) {
+          const dateObj = new Date(currentYear, currentMonth, d);
+          const dayOfWeek = dateObj.getDay();
+          const diff = dateObj.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+          const mon = new Date(dateObj.setDate(diff));
+          const monStr = `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, '0')}-${String(mon.getDate()).padStart(2, '0')}`;
+
+          const savedLocal = localStorage.getItem(`APP_TURNI_PLANNED_MAP_${monStr}`);
+          if (savedLocal) {
+            const parsedMap = JSON.parse(savedLocal);
+            Object.keys(parsedMap).forEach(k => {
+              const parts = k.split('_');
+              if (parts.length >= 3) {
+                plannedSet.add(`${parts[0]}_${parts[1]}_${parts[2]}`);
+              }
+            });
+          }
+        }
+      } catch (e) {}
+
+      // 3. Arricchisci i turni dei dipendenti con flag isExtra e note
+      const enrichedShifts = (shiftData || []).map(s => {
+        const savedNote = localStorage.getItem(`APP_TURNI_NOTE_${s.employee_id}_${s.data}`) || '';
+        const isPlanned = plannedSet.has(`${s.employee_id}_${s.data}_${s.turno}`);
+        return {
+          ...s,
+          note: s.note || savedNote || '',
+          isExtra: !isPlanned
+        };
+      });
+
+      setShifts(enrichedShifts);
     } catch (err) {
       console.error('Admin fetch error:', err);
     } finally {
@@ -156,6 +209,8 @@ export default function AdminDashboard() {
   const totalPranziAll = shifts.filter((s) => s.turno === 'pranzo').length;
   const totalCeneAll = shifts.filter((s) => s.turno === 'cena').length;
   const totalTurniAll = shifts.length;
+  const extraShiftsCount = shifts.filter((s) => s.isExtra).length;
+  const employeesWithExtraCount = new Set(shifts.filter((s) => s.isExtra).map((s) => s.employee_id)).size;
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 16px 40px' }}>
@@ -197,6 +252,33 @@ export default function AdminDashboard() {
           </button>
         </div>
       </div>
+
+      {/* Warning Alert Banner for Discrepancies */}
+      {extraShiftsCount > 0 && (
+        <div className="glass-card" style={{
+          background: 'rgba(239, 68, 68, 0.15)',
+          border: '1px solid rgba(239, 68, 68, 0.4)',
+          borderRadius: '16px',
+          padding: '16px 20px',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '14px',
+          boxShadow: '0 4px 20px rgba(239, 68, 68, 0.15)'
+        }}>
+          <div style={{ background: 'rgba(239, 68, 68, 0.25)', padding: '10px', borderRadius: '12px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <AlertTriangle size={24} color="#f87171" />
+          </div>
+          <div>
+            <h4 style={{ fontSize: '0.98rem', fontWeight: 700, color: '#f87171', margin: '0 0 2px 0' }}>
+              ⚠️ Discrepanze Rilevate: {extraShiftsCount} {extraShiftsCount === 1 ? 'turno non presente' : 'turni non presenti'} a planning ({employeesWithExtraCount} {employeesWithExtraCount === 1 ? 'dipendente' : 'dipendenti'})
+            </h4>
+            <p style={{ fontSize: '0.83rem', color: '#fca5a5', margin: 0 }}>
+              Attenzione: alcuni dipendenti hanno registrato turni effettivi non presenti nella pianificazione settimanale dell'Admin. Espandi le schede dipendenti per verificare i dettagli e le eventuali note motivazionali.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Global Counters */}
       <div className="stats-grid">
@@ -272,6 +354,7 @@ export default function AdminDashboard() {
             const pranzi = empShifts.filter((s) => s.turno === 'pranzo').length;
             const cene = empShifts.filter((s) => s.turno === 'cena').length;
             const uniqueDates = new Set(empShifts.map((s) => s.data)).size;
+            const empExtraCount = empShifts.filter((s) => s.isExtra).length;
             const isExpanded = expandedEmpId === emp.id;
 
             return (
@@ -327,6 +410,37 @@ export default function AdminDashboard() {
 
                   {/* Stat badges */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                    {/* Discrepancy Badge */}
+                    {empExtraCount > 0 ? (
+                      <span style={{
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        color: '#fbbf24',
+                        background: 'rgba(245, 158, 11, 0.2)',
+                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                        padding: '4px 10px',
+                        borderRadius: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }} title="Turni segnati dal dipendente non presenti nel planning confermato dall'Admin">
+                        <AlertTriangle size={13} color="#fbbf24" />
+                        {empExtraCount} Non a planning
+                      </span>
+                    ) : (
+                      <span style={{
+                        fontSize: '0.78rem',
+                        fontWeight: 600,
+                        color: '#4ade80',
+                        background: 'rgba(34, 197, 94, 0.15)',
+                        border: '1px solid rgba(34, 197, 94, 0.3)',
+                        padding: '4px 10px',
+                        borderRadius: '20px'
+                      }}>
+                        🟢 Conforme
+                      </span>
+                    )}
+
                     <span className="badge-pranzo">
                       ☀️ {pranzi} Pranzi
                     </span>
@@ -436,6 +550,8 @@ export default function AdminDashboard() {
                             const dayShifts = empShifts.filter((s) => s.data === dateStr);
                             const hasP = dayShifts.some((s) => s.turno === 'pranzo');
                             const hasC = dayShifts.some((s) => s.turno === 'cena');
+                            const isDayExtra = dayShifts.some((s) => s.isExtra);
+                            const dayNote = dayShifts.find((s) => s.note)?.note;
 
                             return (
                               <div
@@ -444,24 +560,39 @@ export default function AdminDashboard() {
                                 style={{
                                   padding: '10px 14px',
                                   borderRadius: '8px',
-                                  background: 'rgba(30, 41, 59, 0.8)',
-                                  border: '1px solid rgba(255,255,255,0.06)',
+                                  background: isDayExtra ? 'rgba(239, 68, 68, 0.12)' : 'rgba(30, 41, 59, 0.8)',
+                                  border: isDayExtra ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid rgba(255,255,255,0.06)',
                                   display: 'flex',
-                                  alignItems: 'center',
+                                  flexDirection: 'column',
                                   justifyContent: 'space-between',
-                                  cursor: 'pointer'
+                                  cursor: 'pointer',
+                                  gap: '6px'
                                 }}
                               >
-                                <div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                   <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc', textTransform: 'capitalize' }}>
                                     {formatted}
                                   </span>
-                                  <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                                    {hasP && <span className="badge-pranzo" style={{ fontSize: '0.7rem' }}>☀️ Pranzo</span>}
-                                    {hasC && <span className="badge-cena" style={{ fontSize: '0.7rem' }}>🌙 Cena</span>}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    {isDayExtra && (
+                                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#f87171', background: 'rgba(239, 68, 68, 0.2)', padding: '2px 6px', borderRadius: '4px' }}>
+                                        ⚠️ Extra
+                                      </span>
+                                    )}
+                                    <Edit2 size={13} color="#64748b" />
                                   </div>
                                 </div>
-                                <Edit2 size={14} color="#64748b" />
+
+                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                  {hasP && <span className="badge-pranzo" style={{ fontSize: '0.7rem' }}>☀️ Pranzo</span>}
+                                  {hasC && <span className="badge-cena" style={{ fontSize: '0.7rem' }}>🌙 Cena</span>}
+                                </div>
+
+                                {dayNote && (
+                                  <div style={{ fontSize: '0.75rem', color: '#38bdf8', fontStyle: 'italic', wordBreak: 'break-word', marginTop: '2px' }}>
+                                    📝 "{dayNote}"
+                                  </div>
+                                )}
                               </div>
                             );
                           })}

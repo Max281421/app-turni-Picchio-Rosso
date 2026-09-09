@@ -58,7 +58,14 @@ export default function EmployeeDashboard() {
         if (error) {
           console.error('Error loading shifts:', error);
         } else {
-          setShifts(data || []);
+          const enriched = (data || []).map(s => {
+            const savedNote = localStorage.getItem(`APP_TURNI_NOTE_${empId}_${s.data}`) || (user.id ? localStorage.getItem(`APP_TURNI_NOTE_${user.id}_${s.data}`) : '');
+            return {
+              ...s,
+              note: s.note || savedNote || ''
+            };
+          });
+          setShifts(enriched);
         }
       }
     } catch (err) {
@@ -82,12 +89,23 @@ export default function EmployeeDashboard() {
     setIsModalOpen(true);
   };
 
-  const handleSaveShift = async (dateStr, { pranzo, cena }) => {
+  const handleSaveShift = async (dateStr, { pranzo, cena, note }) => {
     const supabase = getSupabaseClient();
     if (!supabase || !user?.id) return;
 
     try {
       let empId = employee?.id || user.id;
+
+      // Salva nota anche in LocalStorage backup
+      try {
+        if (note) {
+          localStorage.setItem(`APP_TURNI_NOTE_${empId}_${dateStr}`, note);
+          if (user.id) localStorage.setItem(`APP_TURNI_NOTE_${user.id}_${dateStr}`, note);
+        } else {
+          localStorage.removeItem(`APP_TURNI_NOTE_${empId}_${dateStr}`);
+          if (user.id) localStorage.removeItem(`APP_TURNI_NOTE_${user.id}_${dateStr}`);
+        }
+      } catch (e) {}
 
       // 1. Rimuovi i turni precedenti per la data selezionata
       const { error: delErr } = await supabase
@@ -102,11 +120,19 @@ export default function EmployeeDashboard() {
 
       // 3. Inserisci i nuovi turni scelti
       const newRows = [];
-      if (pranzo) newRows.push({ employee_id: empId, data: dateStr, turno: 'pranzo' });
-      if (cena) newRows.push({ employee_id: empId, data: dateStr, turno: 'cena' });
+      if (pranzo) newRows.push({ employee_id: empId, data: dateStr, turno: 'pranzo', note: note || null });
+      if (cena) newRows.push({ employee_id: empId, data: dateStr, turno: 'cena', note: note || null });
 
       if (newRows.length > 0) {
-        const { error: insErr } = await supabase.from('shifts').insert(newRows);
+        let { error: insErr } = await supabase.from('shifts').insert(newRows);
+
+        // Fallback per DB senza colonna note: riprova senza la proprietà note
+        if (insErr && (insErr.code === 'PGRST204' || insErr.message?.includes('note') || insErr.code === '42703')) {
+          const fallbackRows = newRows.map(({ note, ...rest }) => rest);
+          const { error: retryErr } = await supabase.from('shifts').insert(fallbackRows);
+          insErr = retryErr;
+        }
+
         if (insErr) throw insErr;
 
         confetti({
