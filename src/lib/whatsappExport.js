@@ -23,20 +23,19 @@ export function parseMansioni(mansioni, empId = null) {
   if (empId) {
     try {
       const stored = localStorage.getItem(`APP_TURNI_MANSIONI_${empId}`);
-      if (stored) {
+      if (stored !== null) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {}
   }
-  if (!mansioni) return ['cassa', 'fattorino', 'pizzeria'];
+  if (mansioni === null || mansioni === undefined) return ['cassa', 'fattorino', 'pizzeria'];
   if (Array.isArray(mansioni)) {
-    if (mansioni.length === 0) return ['cassa', 'fattorino', 'pizzeria'];
     return mansioni;
   }
   if (typeof mansioni === 'string') {
     const cleaned = mansioni.replace(/[{}"\s]/g, '');
-    if (!cleaned) return ['cassa', 'fattorino', 'pizzeria'];
+    if (!cleaned) return [];
     return cleaned.split(',').filter(Boolean);
   }
   return ['cassa', 'fattorino', 'pizzeria'];

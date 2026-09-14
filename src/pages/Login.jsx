@@ -10,6 +10,7 @@ export default function Login({ onOpenSetup }) {
   const [password, setPassword] = useState('');
   const [nome, setNome] = useState('');
   const [ruolo, setRuolo] = useState('dipendente');
+  const [selectedMansioni, setSelectedMansioni] = useState(['cassa', 'fattorino', 'pizzeria']);
 
   const emailRef = useRef(null);
   const passwordRef = useRef(null);
@@ -35,7 +36,7 @@ export default function Login({ onOpenSetup }) {
         if (!submittedNome.trim()) {
           throw new Error('Inserisci il tuo nome e cognome');
         }
-        await register(submittedEmail, submittedPassword, submittedNome.trim(), ruolo);
+        await register(submittedEmail, submittedPassword, submittedNome.trim(), ruolo, selectedMansioni);
         setSuccessMsg('Account creato con successo! Accesso in corso...');
       } else {
         await login(submittedEmail, submittedPassword);
@@ -216,56 +217,105 @@ export default function Login({ onOpenSetup }) {
           </div>
 
           {isRegister && (
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '6px' }}>
-                Ruolo Account
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setRuolo('dipendente')}
-                  style={{
-                    padding: '10px',
-                    borderRadius: '8px',
-                    border: ruolo === 'dipendente' ? '1px solid #818cf8' : '1px solid rgba(255,255,255,0.1)',
-                    background: ruolo === 'dipendente' ? 'rgba(129, 140, 248, 0.2)' : 'rgba(15, 23, 42, 0.6)',
-                    color: ruolo === 'dipendente' ? '#a5b4fc' : '#94a3b8',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    fontSize: '0.85rem',
-                    fontWeight: 600
-                  }}
-                >
-                  <User size={16} />
-                  Dipendente
-                </button>
+            <>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '6px' }}>
+                  Ruolo Account
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setRuolo('dipendente')}
+                    style={{
+                      padding: '10px',
+                      borderRadius: '8px',
+                      border: ruolo === 'dipendente' ? '1px solid #818cf8' : '1px solid rgba(255,255,255,0.1)',
+                      background: ruolo === 'dipendente' ? 'rgba(129, 140, 248, 0.2)' : 'rgba(15, 23, 42, 0.6)',
+                      color: ruolo === 'dipendente' ? '#a5b4fc' : '#94a3b8',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      fontSize: '0.85rem',
+                      fontWeight: 600
+                    }}
+                  >
+                    <User size={16} />
+                    Dipendente
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => setRuolo('admin')}
-                  style={{
-                    padding: '10px',
-                    borderRadius: '8px',
-                    border: ruolo === 'admin' ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
-                    background: ruolo === 'admin' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(15, 23, 42, 0.6)',
-                    color: ruolo === 'admin' ? '#38bdf8' : '#94a3b8',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    fontSize: '0.85rem',
-                    fontWeight: 600
-                  }}
-                >
-                  <Shield size={16} />
-                  Admin / Titolare
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setRuolo('admin')}
+                    style={{
+                      padding: '10px',
+                      borderRadius: '8px',
+                      border: ruolo === 'admin' ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
+                      background: ruolo === 'admin' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(15, 23, 42, 0.6)',
+                      color: ruolo === 'admin' ? '#38bdf8' : '#94a3b8',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      fontSize: '0.85rem',
+                      fontWeight: 600
+                    }}
+                  >
+                    <Shield size={16} />
+                    Admin / Titolare
+                  </button>
+                </div>
               </div>
-            </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: '#38bdf8', fontWeight: 600, marginBottom: '4px' }}>
+                  Settori Operativi (Seleziona uno o più)
+                </label>
+                <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '8px' }}>
+                  Puoi selezionare i settori a cui appartieni oppure deselezionarli tutti.
+                </span>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                  {[
+                    { id: 'cassa', label: '💵 Cassa' },
+                    { id: 'fattorino', label: '🛵 Fattorino' },
+                    { id: 'pizzeria', label: '🍕 Pizzeria' }
+                  ].map((s) => {
+                    const isSelected = selectedMansioni.includes(s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedMansioni((prev) =>
+                            prev.includes(s.id) ? prev.filter((m) => m !== s.id) : [...prev, s.id]
+                          );
+                        }}
+                        style={{
+                          padding: '8px 4px',
+                          borderRadius: '8px',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          border: isSelected ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
+                          background: isSelected ? 'rgba(56, 189, 248, 0.2)' : 'rgba(15, 23, 42, 0.6)',
+                          color: isSelected ? '#38bdf8' : '#94a3b8',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        {s.label} {isSelected ? '✓' : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+                {selectedMansioni.length === 0 && (
+                  <span style={{ display: 'block', fontSize: '0.75rem', color: '#fbbf24', marginTop: '6px', fontStyle: 'italic' }}>
+                    ⚠️ Nessun settore selezionato. Non apparirai nei planning settoriali.
+                  </span>
+                )}
+              </div>
+            </>
           )}
 
           <button

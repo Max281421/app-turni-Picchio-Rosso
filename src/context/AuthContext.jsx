@@ -58,11 +58,11 @@ export function AuthProvider({ children }) {
     try {
       if (empId) {
         const saved = localStorage.getItem(`APP_TURNI_MANSIONI_${empId}`);
-        if (saved) return JSON.parse(saved);
+        if (saved !== null) return JSON.parse(saved);
       }
       if (authUserId) {
         const saved = localStorage.getItem(`APP_TURNI_MANSIONI_${authUserId}`);
-        if (saved) return JSON.parse(saved);
+        if (saved !== null) return JSON.parse(saved);
       }
     } catch (e) {}
     return null;
@@ -71,7 +71,7 @@ export function AuthProvider({ children }) {
   const formatEmpWithMansioni = (emp) => {
     if (!emp) return null;
     const stored = getStoredMansioni(emp.id, emp.auth_user_id);
-    const mansioni = stored && Array.isArray(stored) && stored.length > 0 ? stored : parseMansioni(emp.mansioni, emp.id || emp.auth_user_id);
+    const mansioni = stored !== null && Array.isArray(stored) ? stored : parseMansioni(emp.mansioni, emp.id || emp.auth_user_id);
     return { ...emp, mansioni };
   };
 
@@ -351,9 +351,7 @@ export function AuthProvider({ children }) {
     if (!employeeId) return;
 
     try {
-      const formattedMansioni = Array.isArray(newMansioni) && newMansioni.length > 0
-        ? newMansioni
-        : ['cassa', 'fattorino', 'pizzeria'];
+      const formattedMansioni = Array.isArray(newMansioni) ? newMansioni : [];
 
       try {
         localStorage.setItem(`APP_TURNI_MANSIONI_${employeeId}`, JSON.stringify(formattedMansioni));

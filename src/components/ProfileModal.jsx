@@ -70,7 +70,6 @@ export default function ProfileModal({ isOpen, onClose }) {
   const handleToggleMansione = (target) => {
     setEditingMansioni(prev => {
       if (prev.includes(target)) {
-        if (prev.length === 1) return prev; // Mantieni almeno un settore
         return prev.filter(m => m !== target);
       } else {
         return [...prev, target];
@@ -259,6 +258,12 @@ export default function ProfileModal({ isOpen, onClose }) {
               );
             })}
           </div>
+
+          {editingMansioni.length === 0 && (
+            <span style={{ display: 'block', fontSize: '0.75rem', color: '#fbbf24', marginBottom: '10px', fontStyle: 'italic', textAlign: 'center' }}>
+              ⚠️ Nessun settore selezionato. Non apparirai nei planning settoriali.
+            </span>
+          )}
 
           <button
             type="button"
