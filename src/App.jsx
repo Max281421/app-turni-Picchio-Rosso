@@ -1,6 +1,7 @@
 import React, { useState, Component } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
+import BottomNav from './components/BottomNav';
 import Login from './pages/Login';
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import AdminDashboard from './pages/AdminDashboard';
@@ -56,7 +57,7 @@ class ErrorBoundary extends Component {
 function MainContent() {
   const { user, employee, loading, isConfigured } = useAuth();
   const [showSetup, setShowSetup] = useState(false);
-  const [adminActiveTab, setAdminActiveTab] = useState('my'); // 'my' | 'all' | 'planning'
+  const [adminActiveTab, setAdminActiveTab] = useState('my'); // 'my' | 'all' | 'availabilities' | 'planning'
 
   if (loading) {
     return (
@@ -88,13 +89,9 @@ function MainContent() {
 
   return (
     <>
-      <Navbar
-        onOpenSetup={() => setShowSetup(true)}
-        adminActiveTab={adminActiveTab}
-        setAdminActiveTab={setAdminActiveTab}
-      />
+      <Navbar onOpenSetup={() => setShowSetup(true)} />
 
-      <main style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 16px' }}>
+      <main style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 16px 90px 16px' }}>
         {adminActiveTab === 'availabilities' ? (
           <WeeklyPlanning mode="availabilities" />
         ) : adminActiveTab === 'planning' && isAdmin ? (
@@ -105,6 +102,11 @@ function MainContent() {
           <EmployeeDashboard />
         )}
       </main>
+
+      <BottomNav
+        adminActiveTab={adminActiveTab}
+        setAdminActiveTab={setAdminActiveTab}
+      />
     </>
   );
 }
