@@ -1,10 +1,33 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+// Lista dei dipendenti da escludere dal PDF di riepilogo per il commercialista (pagati separatamente)
+const EXCLUDED_ACCOUNTANT_PDF_NAMES = [
+  'angelo giuliano',
+  'antonio rocco',
+  'saverio nicoscia'
+];
+
+/**
+ * Verifica se un dipendente deve essere escluso dal PDF di riepilogo per il commercialista
+ */
+export function isExcludedFromAccountantPDF(emp) {
+  if (!emp) return false;
+  const name = (emp.nome || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const alias = (emp.alias || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  
+  return EXCLUDED_ACCOUNTANT_PDF_NAMES.some(ex => {
+    return name === ex || alias === ex || name.includes(ex);
+  });
+}
+
 /**
  * Esporta il Foglio 1 (Riepilogo e Date Esatte) in formato PDF (Verticale A4)
  */
 export function exportSummaryToPDF(employees, shifts, monthLabel) {
+  // Filtra i dipendenti che non devono comparire nel PDF per il commercialista
+  const filteredEmployees = (employees || []).filter(emp => !isExcludedFromAccountantPDF(emp));
+
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -29,7 +52,7 @@ export function exportSummaryToPDF(employees, shifts, monthLabel) {
     'Giorni Presenza'
   ]];
 
-  const body = employees.map((emp) => {
+  const body = filteredEmployees.map((emp) => {
     const empShifts = shifts.filter((s) => s.employee_id === emp.id || s.employee_id === emp.auth_user_id);
     const pranzi = empShifts.filter((s) => s.turno === 'pranzo').length;
     const cene = empShifts.filter((s) => s.turno === 'cena').length;
@@ -109,6 +132,9 @@ export function exportSummaryToPDF(employees, shifts, monthLabel) {
  * Esporta il Foglio 2 (Griglia Cartellino 1-31) in formato PDF Orizzontale (Landscape A4)
  */
 export function exportGridToPDF(employees, shifts, monthLabel, currentYear = new Date().getFullYear(), currentMonth = new Date().getMonth()) {
+  // Filtra i dipendenti che non devono comparire nel PDF per il commercialista
+  const filteredEmployees = (employees || []).filter(emp => !isExcludedFromAccountantPDF(emp));
+
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const monthNum = currentMonth + 1;
   const dayInitialsMap = ['D', 'L', 'M', 'M', 'G', 'V', 'S'];
@@ -143,7 +169,7 @@ export function exportGridToPDF(employees, shifts, monthLabel, currentYear = new
     'Totale'
   ]];
 
-  const body = employees.map((emp) => {
+  const body = filteredEmployees.map((emp) => {
     const empShifts = shifts.filter((s) => s.employee_id === emp.id || s.employee_id === emp.auth_user_id);
     const row = [emp.nome || 'N/D'];
 
