@@ -3,10 +3,11 @@ import { useAuth } from '../context/AuthContext';
 import { getSupabaseClient } from '../lib/supabase';
 import MonthPicker from '../components/MonthPicker';
 import ShiftModal from '../components/ShiftModal';
+import ProfileModal from '../components/ProfileModal';
 import { exportShiftsToExcel } from '../lib/excelExport';
 import { exportSummaryToPDF, exportGridToPDF } from '../lib/pdfExport';
 import { parseMansioni } from '../lib/whatsappExport';
-import { FileSpreadsheet, FileText, Users, Sun, Moon, Calendar as CalendarIcon, Search, UserCheck, ChevronDown, ChevronUp, Plus, Edit2, X, AlertTriangle } from 'lucide-react';
+import { FileSpreadsheet, FileText, Users, Sun, Moon, Calendar as CalendarIcon, Search, UserCheck, ChevronDown, ChevronUp, Plus, Edit2, X, AlertTriangle, Settings } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { employee, updateEmployeeRole, updateEmployeeName, updateEmployeeMansioni, deleteAccount } = useAuth();
@@ -21,21 +22,8 @@ export default function AdminDashboard() {
 
   const [expandedEmpId, setExpandedEmpId] = useState(null);
 
-  // Edit Sector Modal for Admin
-  const [editingSectorEmp, setEditingSectorEmp] = useState(null);
-  const [editingSectorMansioni, setEditingSectorMansioni] = useState([]);
-  const [savingSectors, setSavingSectors] = useState(false);
-
-  useEffect(() => {
-    if (editingSectorEmp) {
-      document.body.classList.add('modal-open');
-    } else {
-      document.body.classList.remove('modal-open');
-    }
-    return () => {
-      document.body.classList.remove('modal-open');
-    };
-  }, [editingSectorEmp]);
+  // Edit Employee Account Modal for Admin
+  const [editingEmpForAdmin, setEditingEmpForAdmin] = useState(null);
 
   // Edit Modal for Admin
   const [selectedDate, setSelectedDate] = useState(null);
@@ -476,56 +464,12 @@ export default function AdminDashboard() {
 
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <button
-                          onClick={() => {
-                            setEditingSectorEmp(emp);
-                            setEditingSectorMansioni(parseMansioni(emp.mansioni));
-                          }}
+                          onClick={() => setEditingEmpForAdmin(emp)}
                           className="btn-secondary"
-                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                          style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
                         >
-                          Modifica Settori
-                        </button>
-
-                        <button
-                          onClick={async () => {
-                            const newRole = emp.ruolo === 'admin' ? 'dipendente' : 'admin';
-                            if (confirm(`Vuoi cambiare il ruolo di ${emp.nome} in ${newRole.toUpperCase()}?`)) {
-                              await updateEmployeeRole(emp.id, newRole);
-                              await fetchAdminData();
-                            }
-                          }}
-                          className="btn-secondary"
-                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                        >
-                          Imposta come {emp.ruolo === 'admin' ? 'Dipendente' : 'Admin'}
-                        </button>
-
-                        <button
-                          onClick={async () => {
-                            const promptName = prompt(`Inserisci il nuovo Nome e Cognome per "${emp.nome}":`, emp.nome || '');
-                            if (promptName && promptName.trim() !== '') {
-                              await updateEmployeeName(emp.id, promptName.trim());
-                              await fetchAdminData();
-                            }
-                          }}
-                          className="btn-secondary"
-                          style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                        >
-                          <Edit2 size={13} />
-                          Modifica Nome
-                        </button>
-
-                        <button
-                          onClick={async () => {
-                            if (confirm(`Sei sicuro di voler ELIMINARE il dipendente "${emp.nome}"? Tutti i suoi turni verranno cancellati.`)) {
-                              await deleteAccount(emp.id);
-                              await fetchAdminData();
-                            }
-                          }}
-                          className="btn-danger"
-                          style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                        >
-                          Elimina Dipendente
+                          <Settings size={14} color="#38bdf8" />
+                          Modifica Account
                         </button>
 
                         <button
@@ -628,133 +572,13 @@ export default function AdminDashboard() {
         onClose={() => setIsModalOpen(false)}
       />
 
-      {/* Modal Modifica Settori Operativi per Admin */}
-      {editingSectorEmp && (
-        <div className="modal-overlay" onClick={() => setEditingSectorEmp(null)}>
-          <div className="glass-card modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
-            <div className="modal-header-sticky">
-              <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#f8fafc', margin: 0 }}>
-                  Settori Operativi Pizzeria
-                </h3>
-                <span style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 600 }}>
-                  {editingSectorEmp.nome} {editingSectorEmp.alias ? `(${editingSectorEmp.alias})` : ''}
-                </span>
-              </div>
-              <button
-                onClick={() => setEditingSectorEmp(null)}
-                aria-label="Chiudi"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: 'none',
-                  color: '#94a3b8',
-                  borderRadius: '50%',
-                  width: '32px',
-                  height: '32px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer'
-                }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '20px' }}>
-              Seleziona uno o più settori in cui questo dipendente potrà operare durante la pianificazione settimanale.
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
-              {[
-                { id: 'cassa', label: 'Cassa', icon: '💵', color: '#10b981' },
-                { id: 'fattorino', label: 'Fattorino', icon: '🛵', color: '#38bdf8' },
-                { id: 'pizzeria', label: 'Pizzeria', icon: '🍕', color: '#f59e0b' }
-              ].map(sec => {
-                const isSelected = editingSectorMansioni.includes(sec.id);
-                return (
-                  <button
-                    key={sec.id}
-                    type="button"
-                    onClick={() => {
-                      setEditingSectorMansioni(prev => {
-                        if (prev.includes(sec.id)) {
-                          if (prev.length === 1) return prev;
-                          return prev.filter(m => m !== sec.id);
-                        } else {
-                          return [...prev, sec.id];
-                        }
-                      });
-                    }}
-                    style={{
-                      padding: '12px 16px',
-                      borderRadius: '12px',
-                      border: isSelected ? `2px solid ${sec.color}` : '1px solid rgba(255, 255, 255, 0.08)',
-                      background: isSelected ? `${sec.color}22` : 'rgba(15, 23, 42, 0.6)',
-                      color: isSelected ? '#f8fafc' : '#94a3b8',
-                      fontWeight: 600,
-                      fontSize: '0.9rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justify: 'space-between',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '1.2rem' }}>{sec.icon}</span>
-                      {sec.label}
-                    </span>
-                    <span style={{
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      color: isSelected ? sec.color : '#64748b',
-                      background: isSelected ? 'rgba(255,255,255,0.1)' : 'transparent',
-                      padding: '4px 8px',
-                      borderRadius: '6px'
-                    }}>
-                      {isSelected ? 'Abilitato ✓' : 'Disabilitato'}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setEditingSectorEmp(null)}
-                className="btn-secondary"
-                style={{ padding: '8px 14px', fontSize: '0.85rem' }}
-              >
-                Annulla
-              </button>
-              <button
-                disabled={savingSectors}
-                onClick={async () => {
-                  setSavingSectors(true);
-                  try {
-                    await updateEmployeeMansioni(editingSectorEmp.id, editingSectorMansioni);
-                    if (editingSectorEmp.auth_user_id && editingSectorEmp.auth_user_id !== editingSectorEmp.id) {
-                      await updateEmployeeMansioni(editingSectorEmp.auth_user_id, editingSectorMansioni);
-                    }
-                    await fetchAdminData();
-                    setEditingSectorEmp(null);
-                  } catch (err) {
-                    console.error(err);
-                    alert('Errore durante il salvataggio dei settori.');
-                  } finally {
-                    setSavingSectors(false);
-                  }
-                }}
-                className="btn-primary"
-                style={{ padding: '8px 18px', fontSize: '0.85rem' }}
-              >
-                {savingSectors ? 'Salvataggio...' : 'Salva Settori'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal Modifica Account Dipendente per Admin */}
+      <ProfileModal
+        isOpen={!!editingEmpForAdmin}
+        onClose={() => setEditingEmpForAdmin(null)}
+        targetEmployee={editingEmpForAdmin}
+        onUpdated={fetchAdminData}
+      />
     </div>
   );
 }
