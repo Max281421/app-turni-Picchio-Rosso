@@ -37,6 +37,24 @@ In questo documento sono tracciate le prossime funzionalità concordate, le pers
 
 ---
 
+### 📌 3. Modifica Anagrafica Ingredienti Esistenti (Magazzino)
+- **Stato**: *🟡 Programmato (Fase 2 Magazzino)*
+- **Obiettivo**: Consentire l'editing completo dei dati degli ingredienti già registrati in inventario (nome, categoria, unità di misura, soglia di scorta minima) oltre alla semplice rettifica della quantità.
+
+---
+
+### 📌 4. Restyling Grafico & Layout Pagina Magazzino
+- **Stato**: *🟡 Programmato (Fase 2 Magazzino)*
+- **Obiettivo**: Affinare e migliorare la resa grafica, l'ergonomia visiva e il layout complessivo della sezione Magazzino in base alle specifiche dettagliate che fornirà il titolare.
+
+---
+
+### 📌 5. Collaudo e Testing Scansione Fatture da Foto (AI Vision)
+- **Stato**: *🟡 Programmato (Fase 2 Magazzino)*
+- **Obiettivo**: Eseguire test sul campo con foto di fatture reali e DDT cartacei per affinare la precisione di lettura dei prodotti, delle quantità e dei prezzi al kg (€/kg).
+
+---
+
 ## 📊 Tabella Stato delle Funzionalità
 
 | Funzionalità | Categoria | Stato | Note |
@@ -70,6 +88,9 @@ In questo documento sono tracciate le prossime funzionalità concordate, le pers
 | **Esclusione Account Specifici dai PDF Commercialista** | Commercialista | ✅ Completato | Esclusi "Angelo Giuliano", "Antonio Rocco", "Saverio Nicoscia" dai PDF riepilogativi |
 | **Pulsante Unificato "Modifica Account" (Admin)** | Admin / UX | ✅ Completato | Pulsante singolo `⚙️ Modifica Account` che apre `ProfileModal.jsx` per qualsiasi dipendente |
 | **Gestione Magazzino, Inventario & Scansione Fatture AI Vision** | Magazzino / AI | ✅ Completato | Giacenze ingredienti, avvisi scorte minime, lettura foto fatture con Gemini Vision, auto-carico e archivio scadenze |
+| **Modifica Anagrafica Ingredienti Esistenti** | Magazzino / UI | 🟡 Programmato | Editing completo scheda ingrediente (nome, categoria, unità, soglia min) |
+| **Restyling Grafico & Layout Pagina Magazzino** | UI / Design | 🟡 Programmato | Affinamento grafica e disposizione elementi su indicazioni del titolare |
+| **Collaudo e Testing Scansione Fatture da Foto** | AI / Testing | 🟡 Programmato | Test con foto reali di fatture/DDT per calibrazione OCR ed estrazione €/kg |
 | **Ferie / Indisponibilità Pizzeria** | Pizzeria | 🟡 Programmato | Da definire con regole specifiche pizzeria |
 | **Sistema di Notifiche** | Feature | ⚪ In Valutazione | Fattibile (In-App / Push / Email) |
 
