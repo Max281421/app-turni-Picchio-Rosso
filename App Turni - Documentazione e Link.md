@@ -159,6 +159,13 @@ Per aggiornare l'applicazione online dopo una modifica al codice:
 - **Sostituzione Pulsanti Sparsi**: I vecchi pulsanti sparsi (*Modifica Settori*, *Imposta come Dipendente*, *Modifica Nome*, *Elimina Dipendente*) sono stati sostituiti da un unico pulsante pulito **`⚙️ Modifica Account`**.
 - **Gestione Unificata Profilo (`ProfileModal.jsx`)**: Cliccando su `⚙️ Modifica Account`, l'Admin apre la modale del profilo pre-compilata per il dipendente target, modificando in un'unica vista: **Nome e Cognome**, **Alias / Soprannome WhatsApp**, **Settori Operativi (inclusa l'opzione 0 settori)**, **Ruolo (Admin/Dipendente)** ed **Eliminazione Account con doppia conferma**.
 
+### 📦 20. Modulo Gestione Magazzino, Inventario & Scansione Fatture AI Vision
+- **Dashboard Magazzino (`InventoryDashboard.jsx`)**: Integrazione del 5° pulsante **`📦 Magazzino`** nella Bottom Navigation Bar per gli Admin.
+- **Giacenze in Tempo Reale (`InventoryList.jsx`)**: Elenco interattivo degli ingredienti divisi per categoria con filtri rapidi, avvisi visivi in ROSSO per le scorte minime in esaurimento e modale per la rettifica rapida delle quantità.
+- **Scansione Fatture AI (`InvoiceScanForm.jsx` & `geminiVision.js`)**: Scatto foto da fotocamera smartphone o caricamento file/PDF ed estrazione automatica tramite **Vision AI** di Fornitore, N° Fattura, Data, Totale e la lista prodotti con quantità e **prezzo al kg (€/kg)**. Conferma guidata con auto-carico immediato nell'inventario.
+- **Archivio Fatture & Scadenzario (`InvoiceArchive.jsx`)**: Registro con riepilogo della spesa mensile (€), scadenze pagamenti, filtri di stato (*Pagato, Da Pagare, Scaduto*) e toggle rapido a 1-tap.
+- **Anagrafica Fornitori (`SupplierModal.jsx`)**: Gestione contatti e ditte fornitori.
+
 ---
 
 ## 🔗 Documenti del Progetto App Turni
