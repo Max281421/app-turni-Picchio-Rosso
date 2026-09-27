@@ -8,6 +8,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import SetupConfig from './pages/SetupConfig';
 import PullToRefresh from './components/PullToRefresh';
 import WeeklyPlanning from './components/WeeklyPlanning';
+import InventoryDashboard from './components/inventory/InventoryDashboard';
 import { Calendar, Shield, Users, RefreshCw } from 'lucide-react';
 
 class ErrorBoundary extends Component {
@@ -57,7 +58,7 @@ class ErrorBoundary extends Component {
 function MainContent() {
   const { user, employee, loading, isConfigured } = useAuth();
   const [showSetup, setShowSetup] = useState(false);
-  const [adminActiveTab, setAdminActiveTab] = useState('my'); // 'my' | 'all' | 'availabilities' | 'planning'
+  const [adminActiveTab, setAdminActiveTab] = useState('my'); // 'my' | 'all' | 'availabilities' | 'planning' | 'inventory'
 
   if (loading) {
     return (
@@ -92,7 +93,9 @@ function MainContent() {
       <Navbar onOpenSetup={() => setShowSetup(true)} />
 
       <main style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 16px 90px 16px' }}>
-        {adminActiveTab === 'availabilities' ? (
+        {adminActiveTab === 'inventory' && isAdmin ? (
+          <InventoryDashboard />
+        ) : adminActiveTab === 'availabilities' ? (
           <WeeklyPlanning mode="availabilities" />
         ) : adminActiveTab === 'planning' && isAdmin ? (
           <WeeklyPlanning mode="planning" />

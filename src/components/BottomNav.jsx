@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Users, CalendarCheck, LayoutGrid } from 'lucide-react';
+import { Calendar, Users, CalendarCheck, LayoutGrid, Package } from 'lucide-react';
 
 export default function BottomNav({ adminActiveTab, setAdminActiveTab }) {
   const { user, employee } = useAuth();
@@ -23,14 +23,20 @@ export default function BottomNav({ adminActiveTab, setAdminActiveTab }) {
     },
     {
       id: 'availabilities',
-      label: 'Le Mie Disponibilità',
+      label: 'Disponibilità',
       icon: CalendarCheck,
       show: true,
     },
     {
       id: 'planning',
-      label: 'Planning Settimanale',
+      label: 'Planning',
       icon: LayoutGrid,
+      show: isAdmin,
+    },
+    {
+      id: 'inventory',
+      label: 'Magazzino',
+      icon: Package,
       show: isAdmin,
     },
   ].filter((tab) => tab.show);
