@@ -1,5 +1,5 @@
 ---
-title: "App Turni - Guida Dipendenti"
+title: "App Turni - Guida Dipendenti e Gestione Admin"
 project: "App Turni"
 type: user_guide
 tags:
@@ -9,12 +9,12 @@ related_notes:
   - "[[App Turni - Documentazione e Link]]"
   - "[[ROADMAP_E_BACKLOG]]"
   - "[[SUPABASE_SETUP]]"
-last_updated: 2026-09-09
+last_updated: 2026-09-27
 ---
 
 # 📲 GUIDA ALL'USO ED INSTALLAZIONE - APP TURNI
 
-Benvenuto nell'applicazione ufficiale per la gestione dei turni del personale!
+Benvenuto nell'applicazione ufficiale per la gestione dei turni del personale e del magazzino!
 Segui questa semplice guida per installare l'app sul tuo telefono, registrarti ed inserire i tuoi turni di lavoro.
 
 ---
@@ -23,7 +23,6 @@ Segui questa semplice guida per installare l'app sul tuo telefono, registrarti e
 Apri il seguente link dal browser del tuo smartphone:
 
 👉 **[https://app-turni-psi.vercel.app](https://app-turni-psi.vercel.app)**  
-*(Oppure la versione Beta di Test: [https://app-turni-git-beta-max-s-lab.vercel.app](https://app-turni-git-beta-max-s-lab.vercel.app))*
 
 ---
 
@@ -58,14 +57,17 @@ Per usare l'applicazione come una vera e propria App (senza dover riaprire il br
 - L'applicazione dispone di una comoda **Barra di Navigazione Fissa in Basso** ancorata al fondo dello schermo.
 - Dalla barra puoi passare velocemente tra le tue schede:
   - **`📅 I Miei Turni`**: Calendario mensile per registrare i tuoi turni ed inserire le note.
-  - **`📋 Le Mie Disponibilità`**: Griglia per indicare le tue disponibilità ed i turni confermati dall'Admin.
+  - **`👥 Tutti i Dipendenti`** *(solo Admin)*: Cruscotto con resoconto del personale.
+  - **`📋 Disponibilità`**: Griglia per indicare le tue disponibilità ed i turni confermati dall'Admin.
+  - **`🍕 Planning`** *(solo Admin)*: Programmazione settimanale ed esportazione WhatsApp.
+  - **`📦 Magazzino`** *(solo Admin)*: Gestione giacenze, scansione fatture ed archivio fornitori.
 
 ---
 
 ## 5. INSERIMENTO TURNI LAVORATI E DISPONIBILITÀ SETTIMANALI
 
 ### 🗓️ 5.1 Le Mie Disponibilità & Turni Confermati
-- Dalla sezione **"Le Mie Disponibilità"** puoi indicare i giorni in cui sei disponibile per lavorare (Pranzo ☀️ e Cena 🌙) per la settimana corrente o successiva.
+- Dalla sezione **"Disponibilità"** puoi indicare i giorni in cui sei disponibile per lavorare (Pranzo ☀️ e Cena 🌙) per la settimana corrente o successiva.
 - Nel box inferiore **"Turni Confermati dall'Admin"** potrai consultare la griglia dei turni definitivi decisi dal titolare per la settimana (compreso lo storico delle settimane passate del mese).
 - **💡 Consiglio Mobile**: Da smartphone puoi scorrere la griglia dei 7 giorni orizzontalmente per vedere comodamente da Lunedì a Domenica senza tagli di testo.
 
@@ -96,8 +98,17 @@ In alto a destra troverai il tuo nome. Cliccandoci potrai accedere a **Gestione 
 
 ---
 
+## 9. SEZIONE MAGAZZINO, GIACENZE E SCANSIONE FATTURE AI (SOLO ADMIN)
+Accedendo dalla barra inferiore sulla scheda **`📦 Magazzino`**, l'Amministratore può:
+- 📦 **Consultare le Giacenze**: Vedere tutti gli ingredienti divisi per categoria con avvisi in ROSSO per le scorte minime in esaurimento e rettificare manualmente le quantità.
+- 📸 **Scansionare una Fattura/DDT**: Scattare una foto alla fattura consegnata dal fornitore per fare estrarre all'IA i prodotti, le quantità e il **prezzo al kg (€/kg)** con caricamento automatico in magazzino.
+- 📄 **Archivio Fatture**: Monitorare la spesa totale del mese, le scadenze e segnare le fatture come *Pagate* o *Da Pagare*.
+
+---
+
 ## 🔗 Documenti del Progetto App Turni
 - 📄 [[App Turni - Documentazione e Link]]: Documentazione generale del progetto.
 - 🗺️ [[ROADMAP_E_BACKLOG]]: Prossimi sviluppi e stato delle funzionalità.
 - 🗄️ [[SUPABASE_SETUP]]: Guida alla configurazione del database.
 - 📝 [[prompt-antigravity-app-turni]]: Prompt originale di creazione del progetto.
+

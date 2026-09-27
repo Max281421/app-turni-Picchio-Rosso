@@ -181,17 +181,90 @@ USING (true)
 WITH CHECK (true);
 
 -- PERMESSI GRANT FONDAMENTALI PER L'API SUPABASE (AUTHENTICATED E ANON)
-GRANT ALL ON TABLE public.employees TO authenticated;
-GRANT ALL ON TABLE public.employees TO anon;
+-- 5. TABELLE MAGAZZINO, INVENTARIO E ARCHIVIO FATTURE FORNITORI (AI VISION)
+CREATE TABLE IF NOT EXISTS public.suppliers (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name VARCHAR(255) NOT NULL UNIQUE,
+  phone VARCHAR(50),
+  email VARCHAR(255),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-GRANT ALL ON TABLE public.shifts TO authenticated;
-GRANT ALL ON TABLE public.shifts TO anon;
+CREATE TABLE IF NOT EXISTS public.inventory_items (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name VARCHAR(255) NOT NULL UNIQUE,
+  category VARCHAR(100) DEFAULT 'Generale',
+  unit_of_measure VARCHAR(20) DEFAULT 'kg',
+  current_stock NUMERIC(10, 2) DEFAULT 0.00,
+  min_stock_alert NUMERIC(10, 2) DEFAULT 5.00,
+  last_unit_price NUMERIC(10, 2) DEFAULT 0.00,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-GRANT ALL ON TABLE public.availabilities TO authenticated;
-GRANT ALL ON TABLE public.availabilities TO anon;
+CREATE TABLE IF NOT EXISTS public.invoices (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  supplier_id UUID REFERENCES public.suppliers(id) ON DELETE SET NULL,
+  supplier_name_raw VARCHAR(255),
+  invoice_number VARCHAR(100) NOT NULL,
+  invoice_date DATE DEFAULT CURRENT_DATE,
+  due_date DATE,
+  total_amount NUMERIC(10, 2) DEFAULT 0.00,
+  payment_status VARCHAR(20) DEFAULT 'da_pagare',
+  file_url TEXT,
+  notes TEXT,
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-GRANT ALL ON TABLE public.planned_shifts TO authenticated;
-GRANT ALL ON TABLE public.planned_shifts TO anon;
+CREATE TABLE IF NOT EXISTS public.invoice_items (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  invoice_id UUID REFERENCES public.invoices(id) ON DELETE CASCADE NOT NULL,
+  inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE SET NULL,
+  item_name_raw VARCHAR(255) NOT NULL,
+  quantity NUMERIC(10, 2) DEFAULT 0.00,
+  total_price NUMERIC(10, 2) DEFAULT 0.00,
+  unit_price NUMERIC(10, 2) DEFAULT 0.00,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.inventory_movements (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE CASCADE NOT NULL,
+  movement_type VARCHAR(50) NOT NULL,
+  quantity_change NUMERIC(10, 2) NOT NULL,
+  resulting_stock NUMERIC(10, 2) NOT NULL,
+  reference_id UUID,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RLS PER TABELLE MAGAZZINO
+ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.invoice_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_movements ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Accesso utenti autenticati su suppliers" ON public.suppliers FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "Accesso utenti autenticati su inventory_items" ON public.inventory_items FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "Accesso utenti autenticati su invoices" ON public.invoices FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "Accesso utenti autenticati su invoice_items" ON public.invoice_items FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "Accesso utenti autenticati su inventory_movements" ON public.inventory_movements FOR ALL USING (auth.role() = 'authenticated');
+
+GRANT ALL ON TABLE public.suppliers TO authenticated, anon;
+GRANT ALL ON TABLE public.inventory_items TO authenticated, anon;
+GRANT ALL ON TABLE public.invoices TO authenticated, anon;
+GRANT ALL ON TABLE public.invoice_items TO authenticated, anon;
+GRANT ALL ON TABLE public.inventory_movements TO authenticated, anon;
+
+GRANT ALL ON TABLE public.employees TO authenticated, anon;
+GRANT ALL ON TABLE public.shifts TO authenticated, anon;
+GRANT ALL ON TABLE public.availabilities TO authenticated, anon;
+GRANT ALL ON TABLE public.planned_shifts TO authenticated, anon;
 ```
 
 ---
@@ -211,25 +284,18 @@ Per fare in modo che i dipendenti possano registrarsi ed accedere subito senza d
 
 1. Nel menu laterale sinistro in basso, clicca sull'icona dell'ingranaggio **Project Settings**.
 2. Seleziona la voce **API Keys** (o **Data API** per l'URL):
-   - **Project URL**: L'indirizzo del tuo progetto (es. `https://abcdefghijklm.supabase.co`).
-   - **Publishable Key** (scheda *Publishable and secret API keys*): La chiave che inizia per `sb_publishable_...` (oppure la chiave `anon public` che inizia per `eyJhY...` nella scheda *Legacy anon, service_role API keys*).
-
-> ⚠️ **IMPORTANTE**: Usa la **Publishable key** o la **anon public key**. **NON** usare mai la `Secret key` o la `service_role secret` nell'app client!
+   - **Project URL**: L'indirizzo del tuo progetto (es. `https://anipnkftlyemgpulycqo.supabase.co`).
+   - **Publishable Key**: La chiave che inizia per `sb_publishable_...`.
 
 ---
 
-## 5. Ambienti & Credenziali (Produzione & Beta)
+## 5. Ambienti & Credenziali Progetto
 
-### 🟢 5.1 Credenziali Produzione (Ramo `main`)
+### 🟢 5.1 Credenziali Produzione Unificata (Ramo `main`)
+- **App Online**: [https://app-turni-psi.vercel.app](https://app-turni-psi.vercel.app)
 - **Project URL**: `https://anipnkftlyemgpulycqo.supabase.co`
 - **Publishable Key**: `sb_publishable_sOd-X1rlfMbyBwJ2tVdbUw_Q3tZf-oi`
-- **Database Password**: `[Inserisci la password del DB Produzione]`
 - **Target Vercel**: `Production`
 
-### 🧪 5.2 Credenziali Beta (Ramo `beta`)
-- **Project URL**: `https://aexlzsgmupwbyqwoyvoh.supabase.co`
-- **Publishable Key**: `sb_publishable_RtEies-3GqL5H7KaV4oaqg_XfaTmZyr`
-- **Database Password**: `[Password impostata per il DB Beta]`
-- **Target Vercel**: `Preview`
 
 

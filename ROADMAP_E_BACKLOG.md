@@ -10,7 +10,7 @@ related_notes:
   - "[[ISTRUZIONI_DIPENDENTI]]"
   - "[[SUPABASE_SETUP]]"
   - "[[prompt-antigravity-app-turni]]"
-last_updated: 2026-09-09
+last_updated: 2026-09-27
 ---
 
 # 🗺️ ROADMAP E BACKLOG PROGETTO - APP TURNI
@@ -69,6 +69,7 @@ In questo documento sono tracciate le prossime funzionalità concordate, le pers
 | **Selezione Settori in Signup & Supporto 0 Settori** | Core / Account | ✅ Completato | Scelta settori in registrazione, possibilità di 0 settori e messaggio di avviso |
 | **Esclusione Account Specifici dai PDF Commercialista** | Commercialista | ✅ Completato | Esclusi "Angelo Giuliano", "Antonio Rocco", "Saverio Nicoscia" dai PDF riepilogativi |
 | **Pulsante Unificato "Modifica Account" (Admin)** | Admin / UX | ✅ Completato | Pulsante singolo `⚙️ Modifica Account` che apre `ProfileModal.jsx` per qualsiasi dipendente |
+| **Gestione Magazzino, Inventario & Scansione Fatture AI Vision** | Magazzino / AI | ✅ Completato | Giacenze ingredienti, avvisi scorte minime, lettura foto fatture con Gemini Vision, auto-carico e archivio scadenze |
 | **Ferie / Indisponibilità Pizzeria** | Pizzeria | 🟡 Programmato | Da definire con regole specifiche pizzeria |
 | **Sistema di Notifiche** | Feature | ⚪ In Valutazione | Fattibile (In-App / Push / Email) |
 
