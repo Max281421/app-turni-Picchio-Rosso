@@ -31,7 +31,7 @@ export default function InventoryDashboard() {
       payment_status: 'pagato',
       items: [
         { item_name: 'Mozzarella di Bufala DOP', quantity: 15, unit_of_measure: 'kg', total_price: 127.5, unit_price: 8.5 },
-        { item_name: 'Fior di Latte Appennino', quantity: 10, unit_of_measure: 'kg', total_price: 62.0, unit_price: 6.2 },
+        { item_name: 'Fior di Latte Appennino', quantity: 10, unit_of_measure: 'kg', total_price: 62.0, unit_price: 62.0 / 10 },
       ],
     },
   ]);
@@ -86,6 +86,81 @@ export default function InventoryDashboard() {
       }
     } catch (err) {
       console.warn('Aggiornamento stock salvato in locale');
+    }
+  };
+
+  // Modifica Completa Ingrediente
+  const handleEditItem = async (updatedItem) => {
+    setInventoryItems((prev) =>
+      prev.map((i) => (i.id === updatedItem.id ? updatedItem : i))
+    );
+
+    try {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        await supabase.from('inventory_items').update({
+          name: updatedItem.name,
+          category: updatedItem.category,
+          unit_of_measure: updatedItem.unit_of_measure,
+          current_stock: updatedItem.current_stock,
+          min_stock_alert: updatedItem.min_stock_alert,
+          last_unit_price: updatedItem.last_unit_price,
+        }).eq('id', updatedItem.id);
+      }
+    } catch (err) {
+      console.warn('Ingrediente aggiornato in locale');
+    }
+  };
+
+  // Eliminazione Ingrediente
+  const handleDeleteItem = async (itemId) => {
+    setInventoryItems((prev) => prev.filter((i) => i.id !== itemId));
+
+    try {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        await supabase.from('inventory_items').delete().eq('id', itemId);
+      }
+    } catch (err) {
+      console.warn('Ingrediente eliminato in locale');
+    }
+  };
+
+  // Modifica Completa Fattura
+  const handleEditInvoice = async (updatedInvoice) => {
+    setInvoices((prev) =>
+      prev.map((inv) => (inv.id === updatedInvoice.id ? updatedInvoice : inv))
+    );
+
+    try {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        await supabase.from('invoices').update({
+          supplier_name_raw: updatedInvoice.supplier_name,
+          invoice_number: updatedInvoice.invoice_number,
+          invoice_date: updatedInvoice.invoice_date,
+          due_date: updatedInvoice.due_date,
+          total_amount: updatedInvoice.total_amount,
+          payment_status: updatedInvoice.payment_status,
+          notes: updatedInvoice.notes,
+        }).eq('id', updatedInvoice.id);
+      }
+    } catch (err) {
+      console.warn('Fattura aggiornata in locale');
+    }
+  };
+
+  // Eliminazione Fattura
+  const handleDeleteInvoice = async (invoiceId) => {
+    setInvoices((prev) => prev.filter((inv) => inv.id !== invoiceId));
+
+    try {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        await supabase.from('invoices').delete().eq('id', invoiceId);
+      }
+    } catch (err) {
+      console.warn('Fattura eliminata in locale');
     }
   };
 
@@ -355,6 +430,8 @@ export default function InventoryDashboard() {
         <InventoryList
           items={inventoryItems}
           onUpdateStock={handleUpdateStock}
+          onEditItem={handleEditItem}
+          onDeleteItem={handleDeleteItem}
           onAddNewItem={() => setShowNewItemModal(true)}
           onNavigateToScan={() => setActiveTab('scan')}
         />
@@ -373,6 +450,8 @@ export default function InventoryDashboard() {
         <InvoiceArchive
           invoices={invoices}
           onTogglePaymentStatus={handleTogglePaymentStatus}
+          onEditInvoice={handleEditInvoice}
+          onDeleteInvoice={handleDeleteInvoice}
         />
       )}
 

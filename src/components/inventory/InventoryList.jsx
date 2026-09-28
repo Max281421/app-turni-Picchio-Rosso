@@ -1,16 +1,25 @@
 import React, { useState } from 'react';
-import { Search, Plus, AlertTriangle, Edit3, PackageCheck, Filter, ArrowUpRight, CheckCircle2 } from 'lucide-react';
+import { Search, Plus, AlertTriangle, Edit3, Trash2, X, Check } from 'lucide-react';
 
 export default function InventoryList({
   items,
   onUpdateStock,
+  onEditItem,
+  onDeleteItem,
   onAddNewItem,
   onNavigateToScan,
 }) {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
   const [editingItem, setEditingItem] = useState(null);
-  const [editStockValue, setEditStockValue] = useState('');
+
+  // Form State Modifica Ingrediente
+  const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState('Generale');
+  const [editUnit, setEditUnit] = useState('kg');
+  const [editStock, setEditStock] = useState('0');
+  const [editMinStock, setEditMinStock] = useState('5');
+  const [editPrice, setEditPrice] = useState('0');
 
   const categories = ['Tutti', ...new Set(items.map((i) => i.category || 'Generale'))];
 
@@ -26,17 +35,37 @@ export default function InventoryList({
 
   const handleOpenEdit = (item) => {
     setEditingItem(item);
-    setEditStockValue(item.current_stock.toString());
+    setEditName(item.name || '');
+    setEditCategory(item.category || 'Generale');
+    setEditUnit(item.unit_of_measure || 'kg');
+    setEditStock(item.current_stock?.toString() || '0');
+    setEditMinStock(item.min_stock_alert?.toString() || '5');
+    setEditPrice(item.last_unit_price?.toString() || '0');
   };
 
-  const handleSaveStock = (e) => {
+  const handleSaveEdit = (e) => {
     e.preventDefault();
-    if (!editingItem) return;
-    const newStock = parseFloat(editStockValue);
-    if (!isNaN(newStock) && newStock >= 0) {
-      onUpdateStock(editingItem.id, newStock);
-    }
+    if (!editingItem || !editName.trim()) return;
+
+    const updated = {
+      ...editingItem,
+      name: editName.trim(),
+      category: editCategory,
+      unit_of_measure: editUnit,
+      current_stock: parseFloat(editStock) || 0,
+      min_stock_alert: parseFloat(editMinStock) || 0,
+      last_unit_price: parseFloat(editPrice) || 0,
+    };
+
+    onEditItem(updated);
     setEditingItem(null);
+  };
+
+  const handleDelete = (item) => {
+    if (window.confirm(`Sei sicuro di voler eliminare l'ingrediente "${item.name}" dall'inventario?`)) {
+      onDeleteItem(item.id);
+      setEditingItem(null);
+    }
   };
 
   return (
@@ -206,7 +235,7 @@ export default function InventoryList({
                   </div>
                 </div>
 
-                {/* Badge Giacenza & Tasto Modifica */}
+                {/* Badge Giacenza & Tasti Azione */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div style={{ textAlign: 'right' }}>
                     <div
@@ -227,7 +256,7 @@ export default function InventoryList({
 
                   <button
                     onClick={() => handleOpenEdit(item)}
-                    title="Rettifica Quantità"
+                    title="Modifica Dati & Giacenza Ingrediente"
                     style={{
                       background: 'rgba(255, 255, 255, 0.08)',
                       border: '1px solid rgba(255, 255, 255, 0.15)',
@@ -246,43 +275,129 @@ export default function InventoryList({
         )}
       </div>
 
-      {/* Modale Rettifica Rapida Giacenza */}
+      {/* Modale Modifica Completa / Eliminazione Ingrediente */}
       {editingItem && (
         <div className="modal-overlay">
-          <div className="modal-content glass-card" style={{ maxWidth: '380px', padding: '24px' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '6px' }}>
-              Rettifica Giacenza Manuale
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '16px' }}>
-              Modifica la quantità disponibile per <strong>{editingItem.name}</strong> ({editingItem.unit_of_measure}).
-            </p>
+          <div className="modal-content glass-card" style={{ maxWidth: '420px', padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+                Modifica Ingrediente
+              </h3>
+              <button
+                onClick={() => setEditingItem(null)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
 
-            <form onSubmit={handleSaveStock} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label className="input-label">Nuova Quantità Attuale ({editingItem.unit_of_measure})</label>
+                <label className="input-label">Nome Ingrediente *</label>
                 <input
-                  type="number"
-                  step="0.01"
+                  type="text"
                   required
-                  autoFocus
-                  value={editStockValue}
-                  onChange={(e) => setEditStockValue(e.target.value)}
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
                   className="input-field"
-                  style={{ width: '100%', fontSize: '1.1rem', fontWeight: 700 }}
+                  style={{ width: '100%' }}
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label className="input-label">Categoria</label>
+                  <select
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value)}
+                    className="input-field"
+                    style={{ width: '100%' }}
+                  >
+                    <option value="Latticini">Latticini</option>
+                    <option value="Farine">Farine</option>
+                    <option value="Conserve">Conserve</option>
+                    <option value="Salumi">Salumi</option>
+                    <option value="Bevande">Bevande</option>
+                    <option value="Consumabili">Consumabili</option>
+                    <option value="Generale">Generale</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="input-label">Unità Misura</label>
+                  <select
+                    value={editUnit}
+                    onChange={(e) => setEditUnit(e.target.value)}
+                    className="input-field"
+                    style={{ width: '100%' }}
+                  >
+                    <option value="kg">kg</option>
+                    <option value="litri">litri</option>
+                    <option value="buste">buste</option>
+                    <option value="cartoni">cartoni</option>
+                    <option value="pezzi">pezzi</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label className="input-label">Giacenza ({editUnit})</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={editStock}
+                    onChange={(e) => setEditStock(e.target.value)}
+                    className="input-field"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+
+                <div>
+                  <label className="input-label">Soglia Min</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={editMinStock}
+                    onChange={(e) => setEditMinStock(e.target.value)}
+                    className="input-field"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+
+                <div>
+                  <label className="input-label">€ / {editUnit}</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editPrice}
+                    onChange={(e) => setEditPrice(e.target.value)}
+                    className="input-field"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
                 <button
                   type="button"
-                  onClick={() => setEditingItem(null)}
+                  onClick={() => handleDelete(editingItem)}
                   className="btn-secondary"
-                  style={{ flex: 1 }}
+                  style={{
+                    flex: 1,
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    color: '#ef4444',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    gap: '6px',
+                  }}
                 >
-                  Annulla
+                  <Trash2 size={16} /> Eliminazione
                 </button>
-                <button type="submit" className="btn-primary" style={{ flex: 1 }}>
-                  Salva Giacenza
+
+                <button type="submit" className="btn-primary" style={{ flex: 1, gap: '6px' }}>
+                  <Check size={16} /> Salva Modifiche
                 </button>
               </div>
             </form>
