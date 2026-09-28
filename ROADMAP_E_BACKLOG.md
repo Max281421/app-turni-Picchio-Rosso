@@ -88,7 +88,7 @@ In questo documento sono tracciate le prossime funzionalità concordate, le pers
 | **Esclusione Account Specifici dai PDF Commercialista** | Commercialista | ✅ Completato | Esclusi "Angelo Giuliano", "Antonio Rocco", "Saverio Nicoscia" dai PDF riepilogativi |
 | **Pulsante Unificato "Modifica Account" (Admin)** | Admin / UX | ✅ Completato | Pulsante singolo `⚙️ Modifica Account` che apre `ProfileModal.jsx` per qualsiasi dipendente |
 | **Gestione Magazzino, Inventario & Scansione Fatture AI Vision** | Magazzino / AI | ✅ Completato | Giacenze ingredienti, avvisi scorte minime, lettura foto fatture con Gemini Vision, auto-carico e archivio scadenze |
-| **Modifica Anagrafica Ingredienti Esistenti** | Magazzino / UI | 🟡 Programmato | Editing completo scheda ingrediente (nome, categoria, unità, soglia min) |
+| **Modifica ed Eliminazione Ingredienti & Fatture** | Magazzino / UI | ✅ Completato | Editing completo dati ingredienti/fatture, eliminazione con conferma e tendine espandibili verticali |
 | **Restyling Grafico & Layout Pagina Magazzino** | UI / Design | 🟡 Programmato | Affinamento grafica e disposizione elementi su indicazioni del titolare |
 | **Collaudo e Testing Scansione Fatture da Foto** | AI / Testing | 🟡 Programmato | Test con foto reali di fatture/DDT per calibrazione OCR ed estrazione €/kg |
 | **Ferie / Indisponibilità Pizzeria** | Pizzeria | 🟡 Programmato | Da definire con regole specifiche pizzeria |
