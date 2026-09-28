@@ -96,6 +96,7 @@ export default function InventoryList({
                 alignItems: 'center',
                 justify: 'center',
                 color: '#ef4444',
+                flexShrink: 0,
               }}
             >
               <AlertTriangle size={20} />
@@ -117,6 +118,7 @@ export default function InventoryList({
               fontSize: '0.8rem',
               background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
               whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
             + Nuova Consegna
@@ -127,15 +129,14 @@ export default function InventoryList({
       {/* Controlli di Ricerca e Categorie */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <div style={{ position: 'relative', flex: 1 }}>
+          <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
             <Search
               size={18}
               style={{
                 position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
+                left: '14px',
                 color: '#94a3b8',
+                pointerEvents: 'none',
               }}
             />
             <input
@@ -144,14 +145,14 @@ export default function InventoryList({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="input-field"
-              style={{ paddingLeft: '38px', width: '100%', borderRadius: '12px' }}
+              style={{ paddingLeft: '42px', width: '100%' }}
             />
           </div>
 
           <button
             onClick={onAddNewItem}
             className="btn-primary"
-            style={{ padding: '10px 16px', fontSize: '0.85rem', whiteSpace: 'nowrap', borderRadius: '12px' }}
+            style={{ padding: '10px 16px', fontSize: '0.85rem', whiteSpace: 'nowrap', flexShrink: 0 }}
           >
             <Plus size={18} />
             <span className="hide-mobile">Nuovo Ingrediente</span>
@@ -209,7 +210,7 @@ export default function InventoryList({
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#f8fafc' }}>
                       {item.name}
                     </span>
@@ -227,7 +228,7 @@ export default function InventoryList({
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '14px', marginTop: '6px', fontSize: '0.8rem', color: '#94a3b8' }}>
+                  <div style={{ display: 'flex', gap: '14px', marginTop: '6px', fontSize: '0.8rem', color: '#94a3b8', flexWrap: 'wrap' }}>
                     <span>
                       Ultimo prezzo: <strong style={{ color: '#38bdf8' }}>€ {Number(item.last_unit_price || 0).toFixed(2)} /{item.unit_of_measure}</strong>
                     </span>
@@ -235,8 +236,8 @@ export default function InventoryList({
                   </div>
                 </div>
 
-                {/* Badge Giacenza & Tasti Azione */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {/* Badge Giacenza & Tasto Modifica */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                   <div style={{ textAlign: 'right' }}>
                     <div
                       style={{
@@ -256,14 +257,19 @@ export default function InventoryList({
 
                   <button
                     onClick={() => handleOpenEdit(item)}
-                    title="Modifica Dati & Giacenza Ingrediente"
+                    title="Modifica Ingrediente"
                     style={{
                       background: 'rgba(255, 255, 255, 0.08)',
                       border: '1px solid rgba(255, 255, 255, 0.15)',
                       borderRadius: '10px',
-                      padding: '8px',
+                      width: '36px',
+                      height: '36px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justify: 'center',
                       color: '#f8fafc',
                       cursor: 'pointer',
+                      transition: 'all 0.2s ease',
                     }}
                   >
                     <Edit3 size={16} />
@@ -278,14 +284,23 @@ export default function InventoryList({
       {/* Modale Modifica Completa / Eliminazione Ingrediente */}
       {editingItem && (
         <div className="modal-overlay">
-          <div className="modal-content glass-card" style={{ maxWidth: '420px', padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+          <div className="modal-content glass-card" style={{ maxWidth: '440px', padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc' }}>
                 Modifica Ingrediente
               </h3>
               <button
                 onClick={() => setEditingItem(null)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justify: 'center',
+                  padding: '4px',
+                }}
               >
                 <X size={20} />
               </button>
@@ -384,19 +399,29 @@ export default function InventoryList({
                 <button
                   type="button"
                   onClick={() => handleDelete(editingItem)}
-                  className="btn-secondary"
+                  className="btn-danger"
                   style={{
                     flex: 1,
-                    background: 'rgba(239, 68, 68, 0.15)',
-                    color: '#ef4444',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justify: 'center',
                     gap: '6px',
                   }}
                 >
                   <Trash2 size={16} /> Eliminazione
                 </button>
 
-                <button type="submit" className="btn-primary" style={{ flex: 1, gap: '6px' }}>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justify: 'center',
+                    gap: '6px',
+                  }}
+                >
                   <Check size={16} /> Salva Modifiche
                 </button>
               </div>

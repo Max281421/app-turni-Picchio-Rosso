@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ChevronDown, ChevronUp, Edit3, Trash2, X, Check, FileText } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, Edit3, Trash2, X, Check } from 'lucide-react';
 
 export default function InvoiceArchive({
   invoices,
@@ -58,7 +58,7 @@ export default function InvoiceArchive({
   };
 
   const handleOpenEdit = (inv, e) => {
-    e.stopPropagation(); // Evita l'apertura/chiusura della tendina
+    e.stopPropagation();
     setEditingInvoice(inv);
     setEditSupplier(inv.supplier_name || '');
     setEditNumber(inv.invoice_number || '');
@@ -116,15 +116,14 @@ export default function InvoiceArchive({
 
       {/* Controlli di Ricerca e Filtri Stato */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div style={{ position: 'relative' }}>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
           <Search
             size={18}
             style={{
               position: 'absolute',
-              left: '12px',
-              top: '50%',
-              transform: 'translateY(-50%)',
+              left: '14px',
               color: '#94a3b8',
+              pointerEvents: 'none',
             }}
           />
           <input
@@ -133,7 +132,7 @@ export default function InvoiceArchive({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="input-field"
-            style={{ paddingLeft: '38px', width: '100%', borderRadius: '12px' }}
+            style={{ paddingLeft: '42px', width: '100%' }}
           />
         </div>
 
@@ -213,7 +212,7 @@ export default function InvoiceArchive({
                     </div>
                   </div>
 
-                  <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                  <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
                     <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#38bdf8' }}>
                       € {Number(inv.total_amount).toFixed(2)}
                     </div>
@@ -233,6 +232,9 @@ export default function InvoiceArchive({
                           color: badge.color,
                           border: `1px solid ${badge.border}`,
                           cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
                         }}
                         title="Clicca per cambiare stato pagamento"
                       >
@@ -246,7 +248,11 @@ export default function InvoiceArchive({
                           background: 'rgba(255, 255, 255, 0.08)',
                           border: '1px solid rgba(255, 255, 255, 0.15)',
                           borderRadius: '8px',
-                          padding: '6px',
+                          width: '32px',
+                          height: '32px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justify: 'center',
                           color: '#f8fafc',
                           cursor: 'pointer',
                         }}
@@ -257,7 +263,7 @@ export default function InvoiceArchive({
                   </div>
                 </div>
 
-                {/* Voci della Fattura INCOLONNATE IN VERTICALE (Nascondibili al tocco) */}
+                {/* Voci della Fattura INCOLONNATE IN VERTICALE */}
                 {isExpanded && inv.items && inv.items.length > 0 && (
                   <div
                     style={{
@@ -270,7 +276,7 @@ export default function InvoiceArchive({
                       gap: '8px',
                       marginTop: '4px',
                     }}
-                    onClick={(e) => e.stopPropagation()} // Previene la chiusura accidentale se clicca dentro
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <div style={{ fontWeight: 700, color: '#38bdf8', fontSize: '0.8rem', marginBottom: '2px' }}>
                       Ingredienti Consegnati in Fattura ({inv.items.length}):
@@ -322,13 +328,22 @@ export default function InvoiceArchive({
       {editingInvoice && (
         <div className="modal-overlay">
           <div className="modal-content glass-card" style={{ maxWidth: '440px', padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc' }}>
                 Modifica Dati Fattura
               </h3>
               <button
                 onClick={() => setEditingInvoice(null)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justify: 'center',
+                  padding: '4px',
+                }}
               >
                 <X size={20} />
               </button>
@@ -417,19 +432,29 @@ export default function InvoiceArchive({
                 <button
                   type="button"
                   onClick={() => handleDelete(editingInvoice)}
-                  className="btn-secondary"
+                  className="btn-danger"
                   style={{
                     flex: 1,
-                    background: 'rgba(239, 68, 68, 0.15)',
-                    color: '#ef4444',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justify: 'center',
                     gap: '6px',
                   }}
                 >
                   <Trash2 size={16} /> Eliminazione
                 </button>
 
-                <button type="submit" className="btn-primary" style={{ flex: 1, gap: '6px' }}>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justify: 'center',
+                    gap: '6px',
+                  }}
+                >
                   <Check size={16} /> Salva Fattura
                 </button>
               </div>

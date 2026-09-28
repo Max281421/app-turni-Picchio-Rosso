@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Truck, Plus, Phone, Mail, FileText, Trash2, X } from 'lucide-react';
+import { Truck, Plus, Trash2, X } from 'lucide-react';
 
 export default function SupplierModal({
   suppliers,
@@ -17,10 +17,10 @@ export default function SupplierModal({
     if (!name.trim()) return;
 
     onAddSupplier({
-      name,
-      phone,
-      email,
-      notes,
+      name: name.trim(),
+      phone: phone.trim(),
+      email: email.trim(),
+      notes: notes.trim(),
     });
 
     setName('');
@@ -35,11 +35,20 @@ export default function SupplierModal({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Truck size={22} style={{ color: '#38bdf8' }} />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Anagrafica Fornitori</h3>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc' }}>Anagrafica Fornitori</h3>
           </div>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justify: 'center',
+              padding: '4px',
+            }}
           >
             <X size={20} />
           </button>
@@ -54,6 +63,7 @@ export default function SupplierModal({
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="input-field"
+            style={{ width: '100%' }}
           />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -63,6 +73,7 @@ export default function SupplierModal({
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               className="input-field"
+              style={{ width: '100%' }}
             />
             <input
               type="email"
@@ -70,10 +81,22 @@ export default function SupplierModal({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="input-field"
+              style={{ width: '100%' }}
             />
           </div>
 
-          <button type="submit" className="btn-primary" style={{ padding: '8px', fontSize: '0.85rem' }}>
+          <button
+            type="submit"
+            className="btn-primary"
+            style={{
+              padding: '10px',
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              justify: 'center',
+              gap: '6px',
+            }}
+          >
             <Plus size={16} /> Aggiungi Fornitore
           </button>
         </form>
@@ -91,6 +114,7 @@ export default function SupplierModal({
                   padding: '10px 12px',
                   borderRadius: '10px',
                   background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
                   display: 'flex',
                   justify: 'space-between',
                   alignItems: 'center',
@@ -107,7 +131,18 @@ export default function SupplierModal({
 
                 <button
                   onClick={() => onDeleteSupplier(sup.id)}
-                  style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '6px',
+                    color: '#ef4444',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justify: 'center',
+                  }}
+                  title="Elimina Fornitore"
                 >
                   <Trash2 size={16} />
                 </button>
