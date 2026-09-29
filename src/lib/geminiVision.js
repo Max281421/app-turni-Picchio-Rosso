@@ -24,7 +24,8 @@ export function fileToBase64(file) {
  */
 export async function analyzeInvoiceImage(file, apiKey = null) {
   const envKey = import.meta.env?.VITE_GEMINI_API_KEY;
-  const keyToUse = apiKey || envKey;
+  const localKey = typeof window !== 'undefined' ? localStorage.getItem('gemini_api_key') : null;
+  const keyToUse = apiKey || localKey || envKey;
 
   // Se è presente l'API key, tentiamo la chiamata reale a Google Gemini Vision
   if (keyToUse) {

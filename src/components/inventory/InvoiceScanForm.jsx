@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { analyzeInvoiceImage } from '../../lib/geminiVision';
-import { Camera, Upload, Sparkles, Check, AlertCircle, Plus, Trash2, ArrowLeft, RefreshCw, Layers } from 'lucide-react';
+import { Camera, Upload, Sparkles, Check, AlertCircle, Plus, Trash2, ArrowLeft, RefreshCw, Layers, Key, X } from 'lucide-react';
 
 export default function InvoiceScanForm({
   suppliers,
@@ -14,6 +14,13 @@ export default function InvoiceScanForm({
   const [extractedData, setExtractedData] = useState(null);
   const [isSimulated, setIsSimulated] = useState(false);
 
+  // Gemini API Key State
+  const [apiKey, setApiKey] = useState(() => {
+    return (typeof window !== 'undefined' && localStorage.getItem('gemini_api_key')) || import.meta.env?.VITE_GEMINI_API_KEY || '';
+  });
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [tempApiKey, setTempApiKey] = useState('');
+
   // Form State editabile
   const [supplierName, setSupplierName] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -25,6 +32,20 @@ export default function InvoiceScanForm({
 
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
+
+  const handleSaveApiKey = (e) => {
+    e.preventDefault();
+    const cleanKey = tempApiKey.trim();
+    if (typeof window !== 'undefined') {
+      if (cleanKey) {
+        localStorage.setItem('gemini_api_key', cleanKey);
+      } else {
+        localStorage.removeItem('gemini_api_key');
+      }
+    }
+    setApiKey(cleanKey);
+    setShowApiKeyModal(false);
+  };
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
@@ -44,7 +65,7 @@ export default function InvoiceScanForm({
   const runVisionScan = async (file) => {
     setScanning(true);
     try {
-      const data = await analyzeInvoiceImage(file);
+      const data = await analyzeInvoiceImage(file, apiKey || null);
       setExtractedData(data);
       setIsSimulated(data.is_simulated || false);
 
@@ -123,7 +144,7 @@ export default function InvoiceScanForm({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Intestazione e Pulsante Indietro */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
         <button
           type="button"
           onClick={onCancel}
@@ -134,9 +155,28 @@ export default function InvoiceScanForm({
           Torna alle Giacenze
         </button>
 
-        <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 600 }}>
-          Scansione Fattura & Auto-Carico
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => {
+              setTempApiKey(apiKey);
+              setShowApiKeyModal(true);
+            }}
+            className="btn-secondary"
+            style={{
+              padding: '6px 12px',
+              fontSize: '0.78rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              borderColor: apiKey ? 'rgba(16, 185, 129, 0.4)' : 'rgba(234, 179, 8, 0.4)',
+              color: apiKey ? '#34d399' : '#facc15',
+            }}
+          >
+            <Key size={14} />
+            <span>{apiKey ? '🔑 API Key Gemini Attiva' : '⚠️ Modalità Demo (Inserisci Key)'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Area Scatto Foto / Upload File se non ancora selezionato */}
@@ -508,6 +548,74 @@ export default function InvoiceScanForm({
               </form>
             </>
           )}
+        </div>
+      )}
+
+      {/* Modale Inserimento / Gestione API Key Gemini */}
+      {showApiKeyModal && (
+        <div className="modal-overlay">
+          <div className="modal-content glass-card" style={{ maxWidth: '440px', padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Key size={20} style={{ color: '#38bdf8' }} />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc' }}>
+                  Configura API Key Gemini
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowApiKeyModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: '#cbd5e1', marginBottom: '16px', lineHeight: 1.4 }}>
+              Inserisci la tua <strong>API Key gratuita di Google Gemini</strong> per attivare il riconoscimento reale tramite IA Vision su qualsiasi foto di fattura o DDT.
+            </p>
+
+            <form onSubmit={handleSaveApiKey} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label className="input-label">Gemini API Key (Google AI Studio)</label>
+                <input
+                  type="password"
+                  placeholder="AIzaSy..."
+                  value={tempApiKey}
+                  onChange={(e) => setTempApiKey(e.target.value)}
+                  className="input-field"
+                  style={{ width: '100%', fontFamily: 'monospace' }}
+                />
+              </div>
+
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                💡 Puoi ottenerne una in 1 minuto gratis su <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>aistudio.google.com</a>. Verrà salvata solo nel tuo browser.
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowApiKeyModal(false)}
+                  className="btn-secondary"
+                  style={{ flex: 1 }}
+                >
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ flex: 1 }}
+                >
+                  Salva Chiave
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
