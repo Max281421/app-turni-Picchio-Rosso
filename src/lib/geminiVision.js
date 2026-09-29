@@ -109,7 +109,9 @@ Regole importanti:
           } else {
             const errData = await response.json().catch(() => ({}));
             let errorMsg = errData?.error?.message || `Errore HTTP ${response.status}`;
-            if (response.status === 401) {
+            if (errorMsg.includes('prepayment credits') || errorMsg.includes('depleted')) {
+              errorMsg = 'Il progetto è impostato su "Pagamento Anticipato" con credito 0€. Per usarlo 100% GRATIS: vai su aistudio.google.com/app/apikey, e nella colonna "Livello di fatturazione" seleziona "Livello gratuito" (Free Tier), oppure crea una nuova chiave in "Default Gemini Project".';
+            } else if (response.status === 401) {
               errorMsg = 'Chiave non autorizzata (HTTP 401). Verifica che l\'API Gemini sia attiva nel tuo progetto.';
             }
             lastError = new Error(errorMsg);
