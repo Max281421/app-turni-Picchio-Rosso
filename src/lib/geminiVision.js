@@ -76,6 +76,7 @@ Regole importanti:
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
+                'x-goog-api-key': keyToUse,
               },
               body: JSON.stringify({
                 contents: [
@@ -109,10 +110,14 @@ Regole importanti:
           } else {
             const errData = await response.json().catch(() => ({}));
             let errorMsg = errData?.error?.message || `Errore HTTP ${response.status}`;
-            if (errorMsg.includes('prepayment credits') || errorMsg.includes('depleted')) {
+            const errReason = errData?.error?.details?.[0]?.reason || '';
+
+            if (keyToUse.startsWith('AQ.') || errReason === 'ACCESS_TOKEN_TYPE_UNSUPPORTED' || errReason === 'API_KEY_SERVICE_BLOCKED') {
+              errorMsg = '⚠️ La chiave utilizzata (' + keyToUse.substring(0, 8) + '...) è una chiave di Service Account Google Cloud non supportata direttamente per l\'API REST. Serve una API Key di Google AI Studio che inizia con "AIzaSy...". Crea una chiave gratuita su aistudio.google.com/app/apikey.';
+            } else if (errorMsg.includes('prepayment credits') || errorMsg.includes('depleted')) {
               errorMsg = 'Il progetto è impostato su "Pagamento Anticipato" con credito 0€. Per usarlo 100% GRATIS: vai su aistudio.google.com/app/apikey, e nella colonna "Livello di fatturazione" seleziona "Livello gratuito" (Free Tier), oppure crea una nuova chiave in "Default Gemini Project".';
             } else if (response.status === 401) {
-              errorMsg = 'Chiave non autorizzata (HTTP 401). Verifica che l\'API Gemini sia attiva nel tuo progetto.';
+              errorMsg = 'Chiave non autorizzata (HTTP 401). Genera una API Key gratuita su aistudio.google.com/app/apikey (deve iniziare con AIzaSy...).';
             }
             lastError = new Error(errorMsg);
             if (response.status !== 404 && !errorMsg.includes('not found')) {
