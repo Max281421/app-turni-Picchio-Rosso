@@ -89,16 +89,24 @@ Regole importanti:
         }
       );
 
-      if (response.ok) {
-        const result = await response.json();
-        const textResponse = result.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (textResponse) {
-          const parsed = JSON.parse(textResponse);
-          return formatExtractedInvoice(parsed);
-        }
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        const errorMsg = errData?.error?.message || `Errore HTTP ${response.status}`;
+        throw new Error(`API Gemini Rifiutata: ${errorMsg}`);
+      }
+
+      const result = await response.json();
+      const textResponse = result.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (textResponse) {
+        const parsed = JSON.parse(textResponse);
+        return formatExtractedInvoice(parsed);
+      } else {
+        throw new Error('Risposta vuota da Gemini Vision AI.');
       }
     } catch (err) {
-      console.warn('Scansione Gemini fallita o API Key non valida, passaggio a simulazione dimostrativa:', err);
+      console.error('Scansione Gemini fallita:', err);
+      // Se l'utente ha fornito una chiave esplicita, rilanciamo l'errore per mostrare l'avviso in UI
+      throw err;
     }
   }
 

@@ -62,8 +62,11 @@ export default function InvoiceScanForm({
     await runVisionScan(file);
   };
 
+  const [scanError, setScanError] = useState(null);
+
   const runVisionScan = async (file) => {
     setScanning(true);
+    setScanError(null);
     try {
       const data = await analyzeInvoiceImage(file, apiKey || null);
       setExtractedData(data);
@@ -78,6 +81,7 @@ export default function InvoiceScanForm({
       setItems(data.items || []);
     } catch (err) {
       console.error('Errore durante la scansione dell\'immagine:', err);
+      setScanError(err.message || 'Errore durante la scansione dell\'immagine.');
     } finally {
       setScanning(false);
     }
@@ -285,8 +289,34 @@ export default function InvoiceScanForm({
             </div>
           ) : (
             <>
+              {/* Avviso Errore Scansione Gemini */}
+              {scanError && (
+                <div
+                  style={{
+                    padding: '14px 16px',
+                    borderRadius: '12px',
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    color: '#f87171',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
+                    <AlertCircle size={18} />
+                    <span>Errore Chiamata Google Gemini AI:</span>
+                  </div>
+                  <div style={{ fontWeight: 600 }}>{scanError}</div>
+                  <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '4px' }}>
+                    💡 Le API Key di Google AI Studio iniziano con <strong>AIzaSy...</strong>. Clicca sul pulsante in alto per verificare la chiave generata su <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>aistudio.google.com</a>.
+                  </div>
+                </div>
+              )}
+
               {/* Informazione Modalità Lettura */}
-              {isSimulated && (
+              {isSimulated && !scanError && (
                 <div
                   style={{
                     padding: '10px 14px',
@@ -584,14 +614,30 @@ export default function InvoiceScanForm({
               <div>
                 <label className="input-label">Gemini API Key (Google AI Studio)</label>
                 <input
-                  type="password"
+                  type="text"
                   placeholder="AIzaSy..."
                   value={tempApiKey}
                   onChange={(e) => setTempApiKey(e.target.value)}
                   className="input-field"
-                  style={{ width: '100%', fontFamily: 'monospace' }}
+                  style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.85rem' }}
                 />
               </div>
+
+              {tempApiKey.trim() !== '' && !tempApiKey.trim().startsWith('AIzaSy') && (
+                <div
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    fontSize: '0.78rem',
+                    color: '#f87171',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  ⚠️ <strong>Attenzione sul formato della chiave:</strong> Le API Key di Google AI Studio iniziano con <strong>AIzaSy...</strong>. Il testo incollato sembra un token OAuth o una chiave di un altro servizio. Assicurati di aver generato la chiave su <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>aistudio.google.com/app/apikey</a>.
+                </div>
+              )}
 
               <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                 💡 Puoi ottenerne una in 1 minuto gratis su <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>aistudio.google.com</a>. Verrà salvata solo nel tuo browser.
