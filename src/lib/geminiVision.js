@@ -60,52 +60,72 @@ Regole importanti:
 3. Restituisci SOLO il JSON valido senza marcatori markdown o testo aggiuntivo.
 `;
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${keyToUse}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  { text: promptText },
+      const modelsToTry = [
+        'gemini-2.0-flash',
+        'gemini-1.5-flash-latest',
+        'gemini-2.5-flash',
+      ];
+
+      let lastError = null;
+
+      for (const modelName of modelsToTry) {
+        try {
+          const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${keyToUse}`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                contents: [
                   {
-                    inline_data: {
-                      mime_type: mimeType,
-                      data: base64Data,
-                    },
+                    parts: [
+                      { text: promptText },
+                      {
+                        inline_data: {
+                          mime_type: mimeType,
+                          data: base64Data,
+                        },
+                      },
+                    ],
                   },
                 ],
-              },
-            ],
-            generationConfig: {
-              temperature: 0.1,
-              response_mime_type: 'application/json',
-            },
-          }),
-        }
-      );
+                generationConfig: {
+                  temperature: 0.1,
+                  response_mime_type: 'application/json',
+                },
+              }),
+            }
+          );
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        let errorMsg = errData?.error?.message || `Errore HTTP ${response.status}`;
-        if (response.status === 401) {
-          errorMsg = 'Chiave creata ma non ancora attiva (HTTP 401). Su Google AI Studio fai click sulla scritta azzurra "Configura la fatturazione (Livello gratuito)" per attivare il piano gratuito $0 del tuo progetto, oppure abilita l\'API su console.cloud.google.com.';
+          if (response.ok) {
+            const result = await response.json();
+            const textResponse = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (textResponse) {
+              const parsed = JSON.parse(textResponse);
+              return formatExtractedInvoice(parsed);
+            }
+          } else {
+            const errData = await response.json().catch(() => ({}));
+            let errorMsg = errData?.error?.message || `Errore HTTP ${response.status}`;
+            if (response.status === 401) {
+              errorMsg = 'Chiave non autorizzata (HTTP 401). Verifica che l\'API Gemini sia attiva nel tuo progetto.';
+            }
+            lastError = new Error(errorMsg);
+            if (response.status !== 404 && !errorMsg.includes('not found')) {
+              throw lastError;
+            }
+          }
+        } catch (mErr) {
+          lastError = mErr;
+          if (mErr.message.includes('401') || mErr.message.includes('403')) {
+            throw mErr;
+          }
         }
-        throw new Error(errorMsg);
       }
 
-      const result = await response.json();
-      const textResponse = result.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (textResponse) {
-        const parsed = JSON.parse(textResponse);
-        return formatExtractedInvoice(parsed);
-      } else {
-        throw new Error('Risposta vuota da Gemini Vision AI.');
-      }
+      if (lastError) throw lastError;
     } catch (err) {
       console.error('Scansione Gemini fallita:', err);
       // Se l'utente ha fornito una chiave esplicita, rilanciamo l'errore per mostrare l'avviso in UI
