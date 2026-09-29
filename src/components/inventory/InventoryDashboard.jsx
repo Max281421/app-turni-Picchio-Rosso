@@ -4,12 +4,14 @@ import InventoryList from './InventoryList';
 import InvoiceScanForm from './InvoiceScanForm';
 import InvoiceArchive from './InvoiceArchive';
 import SupplierModal from './SupplierModal';
+import PriceHistoryModal from './PriceHistoryModal';
 import { Package, Sparkles, FileText, Truck, Plus } from 'lucide-react';
 
 export default function InventoryDashboard() {
   const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' | 'scan' | 'archive'
   const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [showNewItemModal, setShowNewItemModal] = useState(false);
+  const [selectedPriceHistoryItem, setSelectedPriceHistoryItem] = useState(null);
 
   // State Dati
   const [inventoryItems, setInventoryItems] = useState([
@@ -434,6 +436,7 @@ export default function InventoryDashboard() {
           onDeleteItem={handleDeleteItem}
           onAddNewItem={() => setShowNewItemModal(true)}
           onNavigateToScan={() => setActiveTab('scan')}
+          onOpenPriceHistory={(item) => setSelectedPriceHistoryItem(item)}
         />
       )}
 
@@ -567,6 +570,15 @@ export default function InventoryDashboard() {
           }
           onDeleteSupplier={(id) => setSuppliers((prev) => prev.filter((s) => s.id !== id))}
           onClose={() => setShowSupplierModal(false)}
+        />
+      )}
+
+      {/* Modale Storico Prezzi & Fornitori per Ingrediente */}
+      {selectedPriceHistoryItem && (
+        <PriceHistoryModal
+          item={selectedPriceHistoryItem}
+          invoices={invoices}
+          onClose={() => setSelectedPriceHistoryItem(null)}
         />
       )}
     </div>

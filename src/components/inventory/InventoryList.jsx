@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, AlertTriangle, Edit3, Trash2, X, Check } from 'lucide-react';
+import { Search, Plus, AlertTriangle, Edit3, Trash2, X, Check, BarChart2 } from 'lucide-react';
 
 export default function InventoryList({
   items,
@@ -8,6 +8,7 @@ export default function InventoryList({
   onDeleteItem,
   onAddNewItem,
   onNavigateToScan,
+  onOpenPriceHistory,
 }) {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
@@ -254,6 +255,26 @@ export default function InventoryList({
                       </div>
                     )}
                   </div>
+
+                  <button
+                    onClick={() => onOpenPriceHistory && onOpenPriceHistory(item)}
+                    title="Storico Prezzi & Fornitori"
+                    style={{
+                      background: 'rgba(56, 189, 248, 0.15)',
+                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                      borderRadius: '10px',
+                      width: '36px',
+                      height: '36px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justify: 'center',
+                      color: '#38bdf8',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <BarChart2 size={16} />
+                  </button>
 
                   <button
                     onClick={() => handleOpenEdit(item)}
