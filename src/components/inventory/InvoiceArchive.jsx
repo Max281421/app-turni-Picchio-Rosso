@@ -252,7 +252,7 @@ export default function InvoiceArchive({
                           height: '32px',
                           display: 'flex',
                           alignItems: 'center',
-                          justify: 'center',
+                          justifyContent: 'center',
                           color: '#f8fafc',
                           cursor: 'pointer',
                         }}
@@ -292,7 +292,7 @@ export default function InvoiceArchive({
                             background: 'rgba(255, 255, 255, 0.04)',
                             border: '1px solid rgba(255, 255, 255, 0.06)',
                             display: 'flex',
-                            justify: 'space-between',
+                            justifyContent: 'space-between',
                             alignItems: 'center',
                           }}
                         >
@@ -341,7 +341,7 @@ export default function InvoiceArchive({
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  justify: 'center',
+                  justifyContent: 'center',
                   padding: '4px',
                 }}
               >
@@ -437,7 +437,7 @@ export default function InvoiceArchive({
                     flex: 1,
                     display: 'flex',
                     alignItems: 'center',
-                    justify: 'center',
+                    justifyContent: 'center',
                     gap: '6px',
                   }}
                 >
@@ -451,7 +451,7 @@ export default function InvoiceArchive({
                     flex: 1,
                     display: 'flex',
                     alignItems: 'center',
-                    justify: 'center',
+                    justifyContent: 'center',
                     gap: '6px',
                   }}
                 >

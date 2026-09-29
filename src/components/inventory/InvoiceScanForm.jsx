@@ -163,7 +163,7 @@ export default function InvoiceScanForm({
               background: 'rgba(56, 189, 248, 0.15)',
               display: 'flex',
               alignItems: 'center',
-              justify: 'center',
+              justifyContent: 'center',
               color: '#38bdf8',
             }}
           >
@@ -465,7 +465,7 @@ export default function InvoiceScanForm({
                   <div
                     style={{
                       display: 'flex',
-                      justify: 'space-between',
+                      justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '14px',
                       borderRadius: '12px',

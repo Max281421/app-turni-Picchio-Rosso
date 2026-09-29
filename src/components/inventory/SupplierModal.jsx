@@ -46,7 +46,7 @@ export default function SupplierModal({
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              justify: 'center',
+              justifyContent: 'center',
               padding: '4px',
             }}
           >
@@ -93,7 +93,7 @@ export default function SupplierModal({
               fontSize: '0.85rem',
               display: 'flex',
               alignItems: 'center',
-              justify: 'center',
+              justifyContent: 'center',
               gap: '6px',
             }}
           >
@@ -116,7 +116,7 @@ export default function SupplierModal({
                   background: 'rgba(255, 255, 255, 0.05)',
                   border: '1px solid rgba(255, 255, 255, 0.08)',
                   display: 'flex',
-                  justify: 'space-between',
+                  justifyContent: 'space-between',
                   alignItems: 'center',
                 }}
               >
@@ -140,7 +140,7 @@ export default function SupplierModal({
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    justify: 'center',
+                    justifyContent: 'center',
                   }}
                   title="Elimina Fornitore"
                 >

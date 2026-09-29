@@ -104,7 +104,7 @@ export default function PriceHistoryModal({ item, invoices, onClose }) {
                 background: 'rgba(56, 189, 248, 0.15)',
                 display: 'flex',
                 alignItems: 'center',
-                justify: 'center',
+                justifyContent: 'center',
                 color: '#38bdf8',
               }}
             >
@@ -129,7 +129,7 @@ export default function PriceHistoryModal({ item, invoices, onClose }) {
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              justify: 'center',
+              justifyContent: 'center',
               padding: '4px',
             }}
           >
@@ -243,7 +243,7 @@ export default function PriceHistoryModal({ item, invoices, onClose }) {
                       border: '1px solid rgba(255, 255, 255, 0.08)',
                       display: 'flex',
                       alignItems: 'center',
-                      justify: 'space-between',
+                      justifyContent: 'space-between',
                       gap: '12px',
                     }}
                   >
@@ -313,7 +313,7 @@ export default function PriceHistoryModal({ item, invoices, onClose }) {
                         border: '1px solid rgba(255, 255, 255, 0.06)',
                         display: 'flex',
                         alignItems: 'center',
-                        justify: 'space-between',
+                        justifyContent: 'space-between',
                         gap: '10px',
                       }}
                     >

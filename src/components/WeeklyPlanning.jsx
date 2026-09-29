@@ -678,7 +678,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    justify: 'center',
+                    justifyContent: 'center',
                     gap: '6px',
                     transition: 'all 0.2s',
                     whiteSpace: 'nowrap'
@@ -723,7 +723,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            justify: 'space-between',
+            justifyContent: 'space-between',
             flexWrap: 'wrap',
             gap: '12px',
             padding: '14px 18px',
@@ -780,7 +780,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                 opacity: day.isTuesday ? 0.65 : 1,
                 display: 'flex',
                 flexDirection: 'column',
-                justify: 'space-between'
+                justifyContent: 'space-between'
               }}>
                 {/* Day Header */}
                 <div style={{ textAlign: 'center', paddingBottom: '10px', marginBottom: '10px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
@@ -837,7 +837,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
-                              justify: 'space-between',
+                              justifyContent: 'space-between',
                               transition: 'all 0.2s'
                             }}
                           >
@@ -884,7 +884,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            justify: 'space-between',
+                            justifyContent: 'space-between',
                             transition: 'all 0.2s'
                           }}
                         >
@@ -1008,7 +1008,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                                         opacity: isAssignedOtherSector ? 0.55 : 1,
                                         display: 'flex',
                                         alignItems: 'center',
-                                        justify: 'space-between',
+                                        justifyContent: 'space-between',
                                         transition: 'all 0.15s'
                                       }}
                                     >
@@ -1127,7 +1127,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                   opacity: day.isTuesday ? 0.65 : 1,
                   display: 'flex',
                   flexDirection: 'column',
-                  justify: 'space-between'
+                  justifyContent: 'space-between'
                 }}>
                   {/* Header Giorno */}
                   <div style={{ textAlign: 'center', paddingBottom: '8px', marginBottom: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
@@ -1208,7 +1208,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
                                           borderRadius: '4px',
                                           display: 'flex',
                                           alignItems: 'center',
-                                          justify: 'space-between'
+                                          justifyContent: 'space-between'
                                         }}>
                                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                             {emp.alias ? `${emp.nome} (${emp.alias})` : emp.nome}

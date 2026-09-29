@@ -82,7 +82,7 @@ export default function InventoryList({
             borderRadius: '16px',
             display: 'flex',
             alignItems: 'center',
-            justify: 'space-between',
+            justifyContent: 'space-between',
             gap: '12px',
           }}
         >
@@ -95,7 +95,7 @@ export default function InventoryList({
                 background: 'rgba(239, 68, 68, 0.2)',
                 display: 'flex',
                 alignItems: 'center',
-                justify: 'center',
+                justifyContent: 'center',
                 color: '#ef4444',
                 flexShrink: 0,
               }}
@@ -205,7 +205,7 @@ export default function InventoryList({
                   padding: '14px 16px',
                   display: 'flex',
                   alignItems: 'center',
-                  justify: 'space-between',
+                  justifyContent: 'space-between',
                   gap: '12px',
                   borderLeft: isLow ? '4px solid #ef4444' : '4px solid #10b981',
                 }}
@@ -267,7 +267,7 @@ export default function InventoryList({
                       height: '36px',
                       display: 'flex',
                       alignItems: 'center',
-                      justify: 'center',
+                      justifyContent: 'center',
                       color: '#38bdf8',
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
@@ -287,7 +287,7 @@ export default function InventoryList({
                       height: '36px',
                       display: 'flex',
                       alignItems: 'center',
-                      justify: 'center',
+                      justifyContent: 'center',
                       color: '#f8fafc',
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
@@ -319,7 +319,7 @@ export default function InventoryList({
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  justify: 'center',
+                  justifyContent: 'center',
                   padding: '4px',
                 }}
               >
@@ -425,7 +425,7 @@ export default function InventoryList({
                     flex: 1,
                     display: 'flex',
                     alignItems: 'center',
-                    justify: 'center',
+                    justifyContent: 'center',
                     gap: '6px',
                   }}
                 >
@@ -439,7 +439,7 @@ export default function InventoryList({
                     flex: 1,
                     display: 'flex',
                     alignItems: 'center',
-                    justify: 'center',
+                    justifyContent: 'center',
                     gap: '6px',
                   }}
                 >
