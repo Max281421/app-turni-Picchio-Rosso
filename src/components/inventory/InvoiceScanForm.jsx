@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { analyzeInvoiceImage } from '../../lib/geminiVision';
-import { Camera, Upload, Sparkles, Check, AlertCircle, Plus, Trash2, ArrowLeft, RefreshCw, Layers, Key, X } from 'lucide-react';
+import { Camera, Upload, Sparkles, Check, Plus, Trash2, ArrowLeft, RefreshCw } from 'lucide-react';
 
 export default function InvoiceScanForm({
   suppliers,
@@ -12,14 +12,6 @@ export default function InvoiceScanForm({
   const [filePreviewUrl, setFilePreviewUrl] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [extractedData, setExtractedData] = useState(null);
-  const [isSimulated, setIsSimulated] = useState(false);
-
-  // Gemini API Key State
-  const [apiKey, setApiKey] = useState(() => {
-    return (typeof window !== 'undefined' && localStorage.getItem('gemini_api_key')) || import.meta.env?.VITE_GEMINI_API_KEY || '';
-  });
-  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
-  const [tempApiKey, setTempApiKey] = useState('');
 
   // Form State editabile
   const [supplierName, setSupplierName] = useState('');
@@ -33,20 +25,6 @@ export default function InvoiceScanForm({
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
 
-  const handleSaveApiKey = (e) => {
-    e.preventDefault();
-    const cleanKey = tempApiKey.trim();
-    if (typeof window !== 'undefined') {
-      if (cleanKey) {
-        localStorage.setItem('gemini_api_key', cleanKey);
-      } else {
-        localStorage.removeItem('gemini_api_key');
-      }
-    }
-    setApiKey(cleanKey);
-    setShowApiKeyModal(false);
-  };
-
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -59,18 +37,14 @@ export default function InvoiceScanForm({
     }
 
     // Avvia la scansione automatica
-    await runVisionScan(file);
+    await runScan(file);
   };
 
-  const [scanError, setScanError] = useState(null);
-
-  const runVisionScan = async (file) => {
+  const runScan = async (file) => {
     setScanning(true);
-    setScanError(null);
     try {
-      const data = await analyzeInvoiceImage(file, apiKey || null);
+      const data = await analyzeInvoiceImage(file);
       setExtractedData(data);
-      setIsSimulated(data.is_simulated || false);
 
       // Precompila il Form
       setSupplierName(data.supplier_name || '');
@@ -80,8 +54,7 @@ export default function InvoiceScanForm({
       setPaymentStatus(data.payment_status || 'da_pagare');
       setItems(data.items || []);
     } catch (err) {
-      console.error('Errore durante la scansione dell\'immagine:', err);
-      setScanError(err.message || 'Errore durante la scansione dell\'immagine.');
+      console.error('Errore durante la lettura dell\'immagine:', err);
     } finally {
       setScanning(false);
     }
@@ -158,29 +131,6 @@ export default function InvoiceScanForm({
           <ArrowLeft size={16} />
           Torna alle Giacenze
         </button>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            type="button"
-            onClick={() => {
-              setTempApiKey(apiKey);
-              setShowApiKeyModal(true);
-            }}
-            className="btn-secondary"
-            style={{
-              padding: '6px 12px',
-              fontSize: '0.78rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              borderColor: apiKey ? 'rgba(16, 185, 129, 0.4)' : 'rgba(234, 179, 8, 0.4)',
-              color: apiKey ? '#34d399' : '#facc15',
-            }}
-          >
-            <Key size={14} />
-            <span>{apiKey ? '🔑 API Key Gemini Attiva' : '⚠️ Modalità Demo (Inserisci Key)'}</span>
-          </button>
-        </div>
       </div>
 
       {/* Area Scatto Foto / Upload File se non ancora selezionato */}
@@ -203,7 +153,7 @@ export default function InvoiceScanForm({
             style={{
               width: '64px',
               height: '64px',
-              borderRadius: '20px',
+              borderRadius: '50%',
               background: 'rgba(56, 189, 248, 0.15)',
               display: 'flex',
               alignItems: 'center',
@@ -211,36 +161,35 @@ export default function InvoiceScanForm({
               color: '#38bdf8',
             }}
           >
-            <Sparkles size={32} />
+            <Camera size={32} />
           </div>
 
           <div>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f8fafc', marginBottom: '6px' }}>
-              Carica o Scatta Foto alla Fattura
+              Scansiona o Carica Foto Fattura / DDT
             </h3>
-            <p style={{ fontSize: '0.85rem', color: '#94a3b8', maxWidth: '400px', margin: '0 auto' }}>
-              L'Intelligenza Artificiale leggerà in automatico i prodotti, le quantità, i prezzi al kg e il totale della fattura.
+            <p style={{ fontSize: '0.88rem', color: '#94a3b8', maxWidth: '420px', margin: '0 auto' }}>
+              Scatta una foto nitida della fattura o seleziona un'immagine per estrarre ed aggiornare automaticamente i prezzi al kg ed il magazzino.
             </p>
           </div>
 
-          {/* Input per Fotocamera Smartphone & File Manager */}
           <input
             type="file"
-            accept="image/*,application/pdf"
-            capture="environment"
-            ref={cameraInputRef}
+            ref={fileInputRef}
             onChange={handleFileChange}
+            accept="image/*,.pdf"
             style={{ display: 'none' }}
           />
           <input
             type="file"
-            accept="image/*,application/pdf"
-            ref={fileInputRef}
+            ref={cameraInputRef}
             onChange={handleFileChange}
+            accept="image/*"
+            capture="environment"
             style={{ display: 'none' }}
           />
 
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '10px' }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '8px' }}>
             <button
               type="button"
               onClick={() => cameraInputRef.current?.click()}
@@ -263,7 +212,7 @@ export default function InvoiceScanForm({
           </div>
         </div>
       ) : (
-        /* Schermata di Analisi e Form Precompilato dall'IA */
+        /* Schermata di Analisi e Form Precompilato */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Indicatore di Scansione in Corso */}
           {scanning ? (
@@ -280,16 +229,16 @@ export default function InvoiceScanForm({
             >
               <RefreshCw size={32} className="spin" style={{ color: '#38bdf8' }} />
               <div style={{ fontWeight: 700, fontSize: '1rem', color: '#f8fafc' }}>
-                Lettura Fattura con AI Vision in Corso...
+                Scansione ed Estrazione Testo in Corso...
               </div>
               <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                Estrazione automatica fornitori, prodotti e prezzi al kg
+                Analisi automatica fornitore, prodotti, quantità e prezzi al kg
               </div>
               <style>{`@keyframes spin { to { transform: rotate(360deg); } } .spin { animation: spin 1s linear infinite; }`}</style>
             </div>
           ) : (
             <>
-              {/* Informazione Modalità Lettura / Scansione Riuscita */}
+              {/* Banner Scansione Riuscita */}
               <div
                 style={{
                   padding: '12px 16px',
@@ -305,7 +254,7 @@ export default function InvoiceScanForm({
               >
                 <Sparkles size={18} />
                 <span>
-                  <strong>Fattura Analizzata con Successo!</strong> I dati ed i prodotti sono stati estratti e precompilati nel modulo sottostante. Puoi verificare o modificare qualsiasi voce prima di salvare in magazzino.
+                  <strong>Fattura Analizzata!</strong> I dati ed i prodotti sono stati estratti nel modulo. Puoi verificare e modificare qualsiasi voce prima di confermare.
                 </span>
               </div>
 
@@ -326,7 +275,7 @@ export default function InvoiceScanForm({
                         onChange={(e) => setSupplierName(e.target.value)}
                         className="input-field"
                         style={{ width: '100%' }}
-                        placeholder="es. Latticini Rossi Srl"
+                        placeholder="es. Vesuvio Food Distribuzione"
                       />
                     </div>
 
@@ -339,7 +288,7 @@ export default function InvoiceScanForm({
                         onChange={(e) => setInvoiceNumber(e.target.value)}
                         className="input-field"
                         style={{ width: '100%' }}
-                        placeholder="es. FT-2026/142"
+                        placeholder="es. FT-2026/1044"
                       />
                     </div>
 
@@ -376,26 +325,24 @@ export default function InvoiceScanForm({
                       >
                         <option value="da_pagare">Da Pagare</option>
                         <option value="pagato">Pagato</option>
-                        <option value="scaduto">Scaduto</option>
                       </select>
                     </div>
                   </div>
                 </div>
 
-                {/* 2. Dettaglio Ingredienti ed Auto-Carico */}
+                {/* 2. Elenco Ingredienti Estratti */}
                 <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#f8fafc' }}>
                       2. Ingredienti Estratti & Carico Magazzino
                     </h3>
-
                     <button
                       type="button"
                       onClick={handleAddItemRow}
                       className="btn-secondary"
-                      style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                      style={{ padding: '6px 12px', fontSize: '0.8rem', gap: '4px' }}
                     >
-                      <Plus size={16} />
+                      <Plus size={14} />
                       + Aggiungi Voce
                     </button>
                   </div>
@@ -404,35 +351,33 @@ export default function InvoiceScanForm({
                     <div
                       key={idx}
                       style={{
-                        padding: '12px',
+                        padding: '14px',
                         borderRadius: '12px',
-                        background: 'rgba(255, 255, 255, 0.04)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        background: 'rgba(15, 23, 42, 0.7)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '10px',
                       }}
                     >
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
                         <input
                           type="text"
-                          required
                           value={item.item_name}
                           onChange={(e) => handleUpdateItem(idx, 'item_name', e.target.value)}
                           className="input-field"
-                          style={{ flex: 1, fontWeight: 700 }}
-                          placeholder="Nome Ingrediente"
+                          style={{ flex: 1, fontWeight: 700, color: '#f8fafc' }}
+                          placeholder="Nome del prodotto"
                         />
-
                         <button
                           type="button"
                           onClick={() => handleRemoveItemRow(idx)}
                           style={{
-                            background: 'rgba(239, 68, 68, 0.15)',
-                            border: 'none',
-                            borderRadius: '8px',
+                            background: 'rgba(239, 68, 68, 0.2)',
+                            border: '1px solid rgba(239, 68, 68, 0.4)',
+                            color: '#f87171',
                             padding: '8px',
-                            color: '#ef4444',
+                            borderRadius: '8px',
                             cursor: 'pointer',
                           }}
                         >
@@ -440,27 +385,26 @@ export default function InvoiceScanForm({
                         </button>
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', alignItems: 'center' }}>
                         <div>
-                          <label style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Quantità</label>
+                          <label style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Quantità</label>
                           <input
                             type="number"
-                            step="0.01"
-                            required
+                            step="any"
                             value={item.quantity}
                             onChange={(e) => handleUpdateItem(idx, 'quantity', e.target.value)}
                             className="input-field"
-                            style={{ width: '100%', fontSize: '0.85rem' }}
+                            style={{ width: '100%' }}
                           />
                         </div>
 
                         <div>
-                          <label style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Unità</label>
+                          <label style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Unità</label>
                           <select
                             value={item.unit_of_measure}
                             onChange={(e) => handleUpdateItem(idx, 'unit_of_measure', e.target.value)}
                             className="input-field"
-                            style={{ width: '100%', fontSize: '0.85rem' }}
+                            style={{ width: '100%' }}
                           >
                             <option value="kg">kg</option>
                             <option value="litri">litri</option>
@@ -471,33 +415,24 @@ export default function InvoiceScanForm({
                         </div>
 
                         <div>
-                          <label style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Totale (€)</label>
+                          <label style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Totale (€)</label>
                           <input
                             type="number"
-                            step="0.01"
-                            required
+                            step="any"
                             value={item.total_price}
                             onChange={(e) => handleUpdateItem(idx, 'total_price', e.target.value)}
                             className="input-field"
-                            style={{ width: '100%', fontSize: '0.85rem' }}
+                            style={{ width: '100%' }}
                           />
                         </div>
 
-                        <div>
-                          <label style={{ fontSize: '0.7rem', color: '#38bdf8', fontWeight: 700 }}>€ / {item.unit_of_measure}</label>
-                          <div
-                            style={{
-                              padding: '8px',
-                              borderRadius: '8px',
-                              background: 'rgba(56, 189, 248, 0.1)',
-                              color: '#38bdf8',
-                              fontWeight: 800,
-                              fontSize: '0.85rem',
-                              textAlign: 'center',
-                            }}
-                          >
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: '0.72rem', color: '#38bdf8', display: 'block' }}>
+                            € / {item.unit_of_measure}
+                          </span>
+                          <span style={{ fontSize: '1rem', fontWeight: 800, color: '#38bdf8' }}>
                             € {Number(item.unit_price || 0).toFixed(2)}
-                          </div>
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -550,74 +485,6 @@ export default function InvoiceScanForm({
               </form>
             </>
           )}
-        </div>
-      )}
-
-      {/* Modale Inserimento / Gestione API Key Gemini */}
-      {showApiKeyModal && (
-        <div className="modal-overlay">
-          <div className="modal-content glass-card" style={{ maxWidth: '440px', padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Key size={20} style={{ color: '#38bdf8' }} />
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc' }}>
-                  Configura API Key Gemini
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowApiKeyModal(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#94a3b8',
-                  cursor: 'pointer',
-                }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <p style={{ fontSize: '0.85rem', color: '#cbd5e1', marginBottom: '16px', lineHeight: 1.4 }}>
-              Inserisci la tua <strong>API Key gratuita di Google Gemini</strong> per attivare il riconoscimento reale tramite IA Vision su qualsiasi foto di fattura o DDT.
-            </p>
-
-            <form onSubmit={handleSaveApiKey} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label className="input-label">Gemini API Key (Google AI Studio)</label>
-                <input
-                  type="text"
-                  placeholder="AIzaSy..."
-                  value={tempApiKey}
-                  onChange={(e) => setTempApiKey(e.target.value)}
-                  className="input-field"
-                  style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.85rem' }}
-                />
-              </div>
-
-              <div style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.4 }}>
-                💡 Se la chiave di default restituisce errore 401, clicca sul pulsante bianco <strong>"+ Crea chiave API"</strong> in alto a destra su <a href="https://aistudio.google.com/app/api-keys" target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>Google AI Studio</a> e scegli <em>"Crea chiave API in un nuovo progetto"</em>.
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowApiKeyModal(false)}
-                  className="btn-secondary"
-                  style={{ flex: 1 }}
-                >
-                  Annulla
-                </button>
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  style={{ flex: 1 }}
-                >
-                  Salva Chiave
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
       )}
     </div>
