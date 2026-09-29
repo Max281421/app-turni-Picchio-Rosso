@@ -623,24 +623,8 @@ export default function InvoiceScanForm({
                 />
               </div>
 
-              {tempApiKey.trim() !== '' && !tempApiKey.trim().startsWith('AIzaSy') && (
-                <div
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    background: 'rgba(239, 68, 68, 0.15)',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    fontSize: '0.78rem',
-                    color: '#f87171',
-                    lineHeight: 1.4,
-                  }}
-                >
-                  ⚠️ <strong>Attenzione sul formato della chiave:</strong> Le API Key di Google AI Studio iniziano con <strong>AIzaSy...</strong>. Il testo incollato sembra un token OAuth o una chiave di un altro servizio. Assicurati di aver generato la chiave su <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>aistudio.google.com/app/apikey</a>.
-                </div>
-              )}
-
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                💡 Puoi ottenerne una in 1 minuto gratis su <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>aistudio.google.com</a>. Verrà salvata solo nel tuo browser.
+              <div style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.4 }}>
+                💡 Se la chiave di default restituisce errore 401, clicca sul pulsante bianco <strong>"+ Crea chiave API"</strong> in alto a destra su <a href="https://aistudio.google.com/app/api-keys" target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>Google AI Studio</a> e scegli <em>"Crea chiave API in un nuovo progetto"</em>.
               </div>
 
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>

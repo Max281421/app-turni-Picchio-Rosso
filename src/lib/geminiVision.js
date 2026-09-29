@@ -91,8 +91,11 @@ Regole importanti:
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        const errorMsg = errData?.error?.message || `Errore HTTP ${response.status}`;
-        throw new Error(`API Gemini Rifiutata: ${errorMsg}`);
+        let errorMsg = errData?.error?.message || `Errore HTTP ${response.status}`;
+        if (response.status === 401) {
+          errorMsg = 'Chiave non autorizzata (HTTP 401). La chiave selezionata fa parte di un progetto non ancora abilitato. Clicca sul pulsante "+ Crea chiave API" in alto a destra su Google AI Studio per generarne una nuova in un nuovo progetto.';
+        }
+        throw new Error(errorMsg);
       }
 
       const result = await response.json();
