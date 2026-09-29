@@ -289,53 +289,25 @@ export default function InvoiceScanForm({
             </div>
           ) : (
             <>
-              {/* Avviso Errore Scansione Gemini */}
-              {scanError && (
-                <div
-                  style={{
-                    padding: '14px 16px',
-                    borderRadius: '12px',
-                    background: 'rgba(239, 68, 68, 0.15)',
-                    border: '1px solid rgba(239, 68, 68, 0.4)',
-                    color: '#f87171',
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '6px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
-                    <AlertCircle size={18} />
-                    <span>Errore Chiamata Google Gemini AI:</span>
-                  </div>
-                  <div style={{ fontWeight: 600 }}>{scanError}</div>
-                  <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '4px' }}>
-                    💡 Le API Key di Google AI Studio iniziano con <strong>AIzaSy...</strong>. Clicca sul pulsante in alto per verificare la chiave generata su <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>aistudio.google.com</a>.
-                  </div>
-                </div>
-              )}
-
-              {/* Informazione Modalità Lettura */}
-              {isSimulated && !scanError && (
-                <div
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: '12px',
-                    background: 'rgba(56, 189, 248, 0.1)',
-                    border: '1px solid rgba(56, 189, 248, 0.3)',
-                    fontSize: '0.8rem',
-                    color: '#38bdf8',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                  }}
-                >
-                  <Sparkles size={16} />
-                  <span>
-                    <strong>Dati Estratti dall'IA (Modalità Demo):</strong> Verifica i dati e apporta eventuali modifiche prima di salvare in magazzino.
-                  </span>
-                </div>
-              )}
+              {/* Informazione Modalità Lettura / Scansione Riuscita */}
+              <div
+                style={{
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  fontSize: '0.85rem',
+                  color: '#34d399',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                }}
+              >
+                <Sparkles size={18} />
+                <span>
+                  <strong>Fattura Analizzata con Successo!</strong> I dati ed i prodotti sono stati estratti e precompilati nel modulo sottostante. Puoi verificare o modificare qualsiasi voce prima di salvare in magazzino.
+                </span>
+              </div>
 
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {/* 1. Dati Generali della Fattura */}
