@@ -93,7 +93,7 @@ Regole importanti:
         const errData = await response.json().catch(() => ({}));
         let errorMsg = errData?.error?.message || `Errore HTTP ${response.status}`;
         if (response.status === 401) {
-          errorMsg = 'Chiave non autorizzata (HTTP 401). La chiave selezionata fa parte di un progetto non ancora abilitato. Clicca sul pulsante "+ Crea chiave API" in alto a destra su Google AI Studio per generarne una nuova in un nuovo progetto.';
+          errorMsg = 'Chiave creata ma non ancora attiva (HTTP 401). Su Google AI Studio fai click sulla scritta azzurra "Configura la fatturazione (Livello gratuito)" per attivare il piano gratuito $0 del tuo progetto, oppure abilita l\'API su console.cloud.google.com.';
         }
         throw new Error(errorMsg);
       }
