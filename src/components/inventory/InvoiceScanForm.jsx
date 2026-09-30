@@ -1,10 +1,59 @@
 import React, { useState, useRef } from 'react';
 import { analyzeInvoiceImage } from '../../lib/geminiVision';
-import { Camera, Upload, Sparkles, Check, Plus, Trash2, ArrowLeft, RefreshCw, Calculator } from 'lucide-react';
+import { Camera, Upload, Sparkles, Check, Plus, Trash2, ArrowLeft, RefreshCw, Calculator, Link as LinkIcon } from 'lucide-react';
+
+/**
+ * Algoritmo di Fuzzy Matching per abbinare automaticamente i nomi grezzi dei prodotti in fattura
+ * con gli ingredienti già presenti nel magazzino dell'utente.
+ */
+function findBestMatchingInventoryItem(rawName, existingItems) {
+  if (!rawName || !existingItems || existingItems.length === 0) return null;
+
+  const clean = (str) =>
+    (str || '')
+      .toLowerCase()
+      .replace(/[\d.,]+(kg|litri|litro|pz|pezzi|cl|l|g|ml)?/gi, '')
+      .replace(/\b(dop|igp|sacchi|fresco|freschi|busta|cartone|d'agerola|napoletani|pugliese|rossi|datterini|san marzano)\b/gi, '')
+      .replace(/[^a-z\s]/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const targetClean = clean(rawName);
+  const targetWords = targetClean.split(' ').filter((w) => w.length > 2);
+
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const item of existingItems) {
+    const itemClean = clean(item.name);
+    const itemWords = itemClean.split(' ').filter((w) => w.length > 2);
+
+    // Corrispondenza pulita esatta
+    if (targetClean === itemClean && targetClean.length > 0) {
+      return item;
+    }
+
+    // Punteggio intersezione parole
+    let matchedWords = 0;
+    for (const tw of targetWords) {
+      if (itemWords.some((iw) => iw.includes(tw) || tw.includes(iw))) {
+        matchedWords++;
+      }
+    }
+
+    const score = matchedWords / Math.max(targetWords.length, 1);
+    if (score > 0.35 && score > bestScore) {
+      bestScore = score;
+      bestMatch = item;
+    }
+  }
+
+  return bestMatch;
+}
 
 export default function InvoiceScanForm({
   suppliers,
-  inventoryItems,
+  inventoryItems = [],
   onSaveInvoice,
   onCancel,
 }) {
@@ -53,7 +102,18 @@ export default function InvoiceScanForm({
       setInvoiceDate(data.invoice_date || new Date().toISOString().split('T')[0]);
       setDueDate(data.due_date || '');
       setPaymentStatus(data.payment_status || 'da_pagare');
-      setItems(data.items || []);
+
+      // Abbinamento intelligente ingredienti estratti con giacenze magazzino esistenti
+      const itemsWithMapping = (data.items || []).map((it) => {
+        const match = findBestMatchingInventoryItem(it.item_name, inventoryItems);
+        return {
+          ...it,
+          target_item_id: match ? match.id : 'new',
+          target_item_name: match ? match.name : it.item_name,
+        };
+      });
+
+      setItems(itemsWithMapping);
 
       const itemsSum = (data.items || []).reduce((acc, curr) => acc + (Number(curr.total_price) || 0), 0);
       const parsedTotal = Number(data.total_amount) || 0;
@@ -77,6 +137,31 @@ export default function InvoiceScanForm({
         updated[index].unit_price = Number((tot / qty).toFixed(2));
       }
     }
+
+    // Se cambia il nome del prodotto e non è abbinato, aggiorna anche il target name
+    if (field === 'item_name' && updated[index].target_item_id === 'new') {
+      updated[index].target_item_name = value;
+    }
+
+    setItems(updated);
+  };
+
+  const handleTargetItemChange = (index, targetId) => {
+    const updated = [...items];
+    if (targetId === 'new') {
+      updated[index].target_item_id = 'new';
+      updated[index].target_item_name = updated[index].item_name;
+    } else {
+      const found = inventoryItems.find((inv) => inv.id === targetId);
+      if (found) {
+        updated[index].target_item_id = found.id;
+        updated[index].target_item_name = found.name;
+        // Allinea l'unità di misura a quella esistente in magazzino
+        if (found.unit_of_measure) {
+          updated[index].unit_of_measure = found.unit_of_measure;
+        }
+      }
+    }
     setItems(updated);
   };
 
@@ -85,6 +170,8 @@ export default function InvoiceScanForm({
       ...items,
       {
         item_name: 'Nuovo Ingrediente',
+        target_item_id: 'new',
+        target_item_name: 'Nuovo Ingrediente',
         quantity: 1,
         unit_of_measure: 'kg',
         total_price: 0,
@@ -181,7 +268,7 @@ export default function InvoiceScanForm({
               Scansiona o Carica Foto Fattura / DDT
             </h3>
             <p style={{ fontSize: '0.88rem', color: '#94a3b8', maxWidth: '420px', margin: '0 auto' }}>
-              Scatta una foto nitida della fattura o seleziona un'immagine per estrarre ed aggiornare automaticamente i prezzi al kg ed il magazzino.
+              Scatta una foto della fattura per estrarre ed aggiornare automaticamente giacenze e prezzi al kg degli ingredienti.
             </p>
           </div>
 
@@ -241,10 +328,10 @@ export default function InvoiceScanForm({
             >
               <RefreshCw size={32} className="spin" style={{ color: '#38bdf8' }} />
               <div style={{ fontWeight: 700, fontSize: '1rem', color: '#f8fafc' }}>
-                Scansione ed Estrazione Testo in Corso...
+                Analisi Intelligenza Artificiale in Corso...
               </div>
               <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                Analisi automatica fornitore, prodotti, quantità, prezzi al kg e totale fattura
+                Lettura fornitore, prodotti, quantità, prezzi e abbinamento automatico con gli ingredienti in magazzino
               </div>
               <style>{`@keyframes spin { to { transform: rotate(360deg); } } .spin { animation: spin 1s linear infinite; }`}</style>
             </div>
@@ -266,7 +353,7 @@ export default function InvoiceScanForm({
               >
                 <Sparkles size={18} />
                 <span>
-                  <strong>Fattura Analizzata!</strong> I dati sono stati estratti nel modulo. Puoi verificare e modificare qualsiasi voce o totale prima di confermare.
+                  <strong>Fattura Analizzata!</strong> Gli ingredienti sono stati estratti ed abbinati automaticamente al tuo magazzino. Puoi verificare o cambiare gli abbinamenti prima di confermare.
                 </span>
               </div>
 
@@ -356,11 +443,11 @@ export default function InvoiceScanForm({
                   </div>
                 </div>
 
-                {/* 2. Elenco Ingredienti Estratti */}
+                {/* 2. Elenco Ingredienti Estratti & Abbinamento Giacenze */}
                 <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#f8fafc' }}>
-                      2. Ingredienti Estratti & Carico Magazzino
+                      2. Ingredienti Estratti & Abbinamento Giacenze Magazzino
                     </h3>
                     <button
                       type="button"
@@ -375,99 +462,145 @@ export default function InvoiceScanForm({
 
                   {items.length === 0 ? (
                     <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>
-                      Nessuna voce est estratta automaticamente. Clicca su "+ Aggiungi Voce" per aggiungere gli ingredienti.
+                      Nessuna voce estratta. Clicca su "+ Aggiungi Voce" per inserire gli ingredienti.
                     </div>
                   ) : (
-                    items.map((item, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          padding: '14px',
-                          borderRadius: '12px',
-                          background: 'rgba(15, 23, 42, 0.7)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '10px',
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
-                          <input
-                            type="text"
-                            value={item.item_name}
-                            onChange={(e) => handleUpdateItem(idx, 'item_name', e.target.value)}
-                            className="input-field"
-                            style={{ flex: 1, fontWeight: 700, color: '#f8fafc' }}
-                            placeholder="Nome del prodotto"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveItemRow(idx)}
-                            style={{
-                              background: 'rgba(239, 68, 68, 0.2)',
-                              border: '1px solid rgba(239, 68, 68, 0.4)',
-                              color: '#f87171',
-                              padding: '8px',
-                              borderRadius: '8px',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                    items.map((item, idx) => {
+                      const isMapped = item.target_item_id && item.target_item_id !== 'new';
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            padding: '16px',
+                            borderRadius: '14px',
+                            background: 'rgba(15, 23, 42, 0.75)',
+                            border: isMapped
+                              ? '1px solid rgba(52, 211, 153, 0.4)'
+                              : '1px solid rgba(255, 255, 255, 0.12)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '12px',
+                          }}
+                        >
+                          {/* Prima Riga: Nome in Fattura vs Abbinamento Ingrediente Magazzino */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', alignItems: 'center' }}>
+                            <div>
+                              <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                                Nome Prodotto in Fattura
+                              </label>
+                              <input
+                                type="text"
+                                value={item.item_name}
+                                onChange={(e) => handleUpdateItem(idx, 'item_name', e.target.value)}
+                                className="input-field"
+                                style={{ width: '100%', fontWeight: 700, color: '#f8fafc' }}
+                                placeholder="Nome del prodotto in fattura"
+                              />
+                            </div>
+
+                            <div>
+                              <label style={{ fontSize: '0.72rem', color: isMapped ? '#34d399' : '#38bdf8', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+                                <LinkIcon size={12} />
+                                {isMapped ? 'Abbinato a Ingrediente Esistente:' : 'Aggiorna Giacenza Magazzino:'}
+                              </label>
+                              <select
+                                value={item.target_item_id || 'new'}
+                                onChange={(e) => handleTargetItemChange(idx, e.target.value)}
+                                className="input-field"
+                                style={{
+                                  width: '100%',
+                                  fontWeight: 600,
+                                  color: isMapped ? '#34d399' : '#38bdf8',
+                                  borderColor: isMapped ? 'rgba(52, 211, 153, 0.6)' : 'rgba(56, 189, 248, 0.4)',
+                                  background: isMapped ? 'rgba(16, 185, 129, 0.1)' : 'rgba(15, 23, 42, 0.8)',
+                                }}
+                              >
+                                <option value="new">+ Crea come Nuovo Ingrediente ("{item.item_name}")</option>
+                                {inventoryItems.map((inv) => (
+                                  <option key={inv.id} value={inv.id}>
+                                    📦 {inv.name} (Attuale: {inv.current_stock} {inv.unit_of_measure})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveItemRow(idx)}
+                                style={{
+                                  background: 'rgba(239, 68, 68, 0.2)',
+                                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                                  color: '#f87171',
+                                  padding: '8px 12px',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer',
+                                  fontSize: '0.8rem',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                              >
+                                <Trash2 size={14} />
+                                Rimuovi
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Seconda Riga: Dettagli Quantità, Unità e Prezzi */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px', alignItems: 'center' }}>
+                            <div>
+                              <label style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Quantità</label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={item.quantity}
+                                onChange={(e) => handleUpdateItem(idx, 'quantity', e.target.value)}
+                                className="input-field"
+                                style={{ width: '100%' }}
+                              />
+                            </div>
+
+                            <div>
+                              <label style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Unità</label>
+                              <select
+                                value={item.unit_of_measure}
+                                onChange={(e) => handleUpdateItem(idx, 'unit_of_measure', e.target.value)}
+                                className="input-field"
+                                style={{ width: '100%' }}
+                              >
+                                <option value="kg">kg</option>
+                                <option value="litri">litri</option>
+                                <option value="buste">buste</option>
+                                <option value="cartoni">cartoni</option>
+                                <option value="pezzi">pezzi</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Totale Voce (€)</label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={item.total_price}
+                                onChange={(e) => handleUpdateItem(idx, 'total_price', e.target.value)}
+                                className="input-field"
+                                style={{ width: '100%' }}
+                              />
+                            </div>
+
+                            <div style={{ textAlign: 'right' }}>
+                              <span style={{ fontSize: '0.72rem', color: '#38bdf8', display: 'block' }}>
+                                Prezzo Calcolato (€ / {item.unit_of_measure})
+                              </span>
+                              <span style={{ fontSize: '1rem', fontWeight: 800, color: '#38bdf8' }}>
+                                € {Number(item.unit_price || 0).toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', alignItems: 'center' }}>
-                          <div>
-                            <label style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Quantità</label>
-                            <input
-                              type="number"
-                              step="any"
-                              value={item.quantity}
-                              onChange={(e) => handleUpdateItem(idx, 'quantity', e.target.value)}
-                              className="input-field"
-                              style={{ width: '100%' }}
-                            />
-                          </div>
-
-                          <div>
-                            <label style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Unità</label>
-                            <select
-                              value={item.unit_of_measure}
-                              onChange={(e) => handleUpdateItem(idx, 'unit_of_measure', e.target.value)}
-                              className="input-field"
-                              style={{ width: '100%' }}
-                            >
-                              <option value="kg">kg</option>
-                              <option value="litri">litri</option>
-                              <option value="buste">buste</option>
-                              <option value="cartoni">cartoni</option>
-                              <option value="pezzi">pezzi</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Totale Voce (€)</label>
-                            <input
-                              type="number"
-                              step="any"
-                              value={item.total_price}
-                              onChange={(e) => handleUpdateItem(idx, 'total_price', e.target.value)}
-                              className="input-field"
-                              style={{ width: '100%' }}
-                            />
-                          </div>
-
-                          <div style={{ textAlign: 'right' }}>
-                            <span style={{ fontSize: '0.72rem', color: '#38bdf8', display: 'block' }}>
-                              € / {item.unit_of_measure}
-                            </span>
-                            <span style={{ fontSize: '1rem', fontWeight: 800, color: '#38bdf8' }}>
-                              € {Number(item.unit_price || 0).toFixed(2)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
 
                   {/* Riepilogo Totali */}

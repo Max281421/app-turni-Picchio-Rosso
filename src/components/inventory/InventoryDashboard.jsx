@@ -229,27 +229,49 @@ export default function InventoryDashboard() {
     setInventoryItems((prevItems) => {
       const updated = [...prevItems];
       invoicePayload.items.forEach((item) => {
-        const existingIdx = updated.findIndex(
-          (u) => u.name.toLowerCase() === item.item_name.toLowerCase()
-        );
+        let existingIdx = -1;
+
+        // 1. Cerca per ID esplicito abbinato dall'utente
+        if (item.target_item_id && item.target_item_id !== 'new') {
+          existingIdx = updated.findIndex((u) => u.id === item.target_item_id);
+        }
+
+        // 2. Se non trovato per ID, cerca per nome target o nome grezzo
+        if (existingIdx === -1) {
+          const nameToMatch = (item.target_item_name || item.item_name || '').trim().toLowerCase();
+          existingIdx = updated.findIndex(
+            (u) => u.name.trim().toLowerCase() === nameToMatch
+          );
+        }
 
         if (existingIdx >= 0) {
-          // Incrementa quantità e aggiorna ultimo prezzo al kg
+          // Incrementa quantità e aggiorna ultimo prezzo unitario
           const currentQty = Number(updated[existingIdx].current_stock) || 0;
           const addedQty = Number(item.quantity) || 0;
           updated[existingIdx] = {
             ...updated[existingIdx],
-            current_stock: currentQty + addedQty,
+            current_stock: Number((currentQty + addedQty).toFixed(2)),
             last_unit_price: Number(item.unit_price) || updated[existingIdx].last_unit_price,
           };
         } else {
-          // Se l'ingrediente è nuovo, lo crea al volo nell'inventario
+          // Se l'ingrediente è nuovo, lo crea con la categoria automatica corretta
+          const finalName = item.target_item_name || item.item_name;
+          const nameLower = (finalName || '').toLowerCase();
+          let cat = 'Generale';
+          if (/\b(mozzarella|fior di latte|provola|stracciatella|ricotta|formaggio|latte|burro|caciocavallo|parmigiano|grana|gorgonzola|bocconcini)\b/i.test(nameLower)) cat = 'Latticini';
+          else if (/\b(farina|semola|lievito|grano|crusca)\b/i.test(nameLower)) cat = 'Farine';
+          else if (/\b(pelati|pomodoro|datterini|passata|salsa|polpa|conserva|concentrato)\b/i.test(nameLower)) cat = 'Conserve';
+          else if (/\b(prosciutto|salame|speck|pancetta|mortadella|ciccioli|wurstel|guanciale|coppa|bresaola|culatello)\b/i.test(nameLower)) cat = 'Salumi';
+          else if (/\b(olio|aceto|sale|zucchero|spezie|origano|pepe|peperoncino|maionese|ketchup)\b/i.test(nameLower)) cat = 'Consumabili';
+          else if (/\b(vino|birra|acqua|bibita|succo|coca|fanta|sprite|te|spumante|prosecco|liquore)\b/i.test(nameLower)) cat = 'Bevande';
+          else if (/\b(friarielli|basilico|rucola|funghi|fungo|carciofi|melanzane|zucchine|patate|ortofruit|aglio|cipolla|limoni|arance)\b/i.test(nameLower)) cat = 'Ortofrutta';
+
           updated.push({
-            id: `item-${Date.now()}-${Math.random()}`,
-            name: item.item_name,
-            category: 'Generale',
+            id: `item-${Date.now()}-${Math.random().toString().slice(2, 6)}`,
+            name: finalName,
+            category: cat,
             unit_of_measure: item.unit_of_measure || 'kg',
-            current_stock: Number(item.quantity) || 0,
+            current_stock: Number(Number(item.quantity || 0).toFixed(2)),
             min_stock_alert: 5.0,
             last_unit_price: Number(item.unit_price) || 0,
           });
