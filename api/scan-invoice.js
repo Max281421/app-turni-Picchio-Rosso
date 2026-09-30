@@ -73,8 +73,7 @@ Regole importanti:
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.0-flash-001',
-          response_format: { type: 'json_object' },
+          model: 'openai/gpt-4o-mini',
           messages: [
             {
               role: 'user',
@@ -104,7 +103,7 @@ Regole importanti:
       }
     }
 
-    // 2. TENTATIVO CON OPENAI (Se configurato)
+    // 2. TENTATIVO CON OPENAI DIRECT (Se configurato)
     if (openaiKey) {
       const openAiResp = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
