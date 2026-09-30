@@ -56,9 +56,11 @@ Estrai esattamente i seguenti dati in formato JSON valido:
 }
 
 Regole importanti:
-1. "unit_of_measure" deve essere una tra: kg, litri, buste, cartoni, pezzi.
-2. "unit_price" è il prezzo al kg o per unità. Se non indicato esplicitamente, calcolalo dividendo total_price per quantity.
-3. Restituisci SOLO il JSON valido senza marcatori markdown o testo aggiuntivo.
+1. "total_amount" deve essere il TOTALE FINALE FATTURA / DOCUMENTO espresso sul documento (COMPRESO IVA/TATTURE E TASSE, ad esempio indicato come "TOTALE FATTURA" o "TOTALE DOCUMENTO" o "TOTALE A PAGARE"), non solo l'imponibile dei singoli beni.
+2. "item_name" deve contenere la descrizione pulita del prodotto. Rimuovi eventuali codici articolo iniziali (es. BUF-01, ART-12, COD-99).
+3. "unit_of_measure" deve essere una tra: kg, litri, buste, cartoni, pezzi.
+4. "unit_price" è il prezzo al kg o per unità. Se non indicato esplicitamente, calcolalo dividendo total_price per quantity.
+5. Restituisci SOLO il JSON valido senza marcatori markdown o testo aggiuntivo.
 `;
 
     const result = await model.generateContent([

@@ -15,12 +15,23 @@ export function fileToBase64(file) {
 
 /**
  * Service principale per la scansione ed estrazione automatica dei dati da immagini di fatture e DDT.
- * Utilizza una pipeline a 3 livelli: API Vision Serverless -> OCR Tesseract Locale -> Parser Matematico.
+ * Utilizza una pipeline a 2 livelli: API Vision Serverless -> OCR Tesseract Locale + Parser Matematico.
  * @param {File} file - Il file foto o PDF caricato dall'utente
  * @returns {Promise<Object>} Oggetto con i dati estratti della fattura e delle singole voci
  */
 export async function analyzeInvoiceImage(file) {
-  if (!file) return getFallbackInvoiceData(file);
+  const today = new Date().toISOString().split('T')[0];
+  const emptyResult = {
+    supplier_name: '',
+    invoice_number: `FT-${Date.now().toString().slice(-4)}`,
+    invoice_date: today,
+    due_date: '',
+    total_amount: 0,
+    payment_status: 'da_pagare',
+    items: [],
+  };
+
+  if (!file) return emptyResult;
 
   const base64Data = await fileToBase64(file);
   const mimeType = file.type || 'image/jpeg';
@@ -40,7 +51,7 @@ export async function analyzeInvoiceImage(file) {
 
     if (apiResp.ok) {
       const parsed = await apiResp.json();
-      if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+      if (parsed && (parsed.supplier_name || (Array.isArray(parsed.items) && parsed.items.length > 0))) {
         return formatExtractedInvoice(parsed);
       }
     }
@@ -52,15 +63,15 @@ export async function analyzeInvoiceImage(file) {
   try {
     const processedFile = await preprocessImageForOCR(file);
     const ocrResult = await processOCR(processedFile || file);
-    if (ocrResult && ocrResult.items && ocrResult.items.length > 0) {
+    if (ocrResult) {
       return ocrResult;
     }
   } catch (ocrErr) {
     console.warn('Errore durante l\'estrazione OCR locale:', ocrErr);
   }
 
-  // 3. ESTRAZIONE DI SICUREZZA
-  return await getFallbackInvoiceData(file);
+  // 3. SE NON VIENE TROVATO ALCUN DATO, RITORNA FORM VUOTO (MAI DATI FINTI HARDCODATI)
+  return emptyResult;
 }
 
 /**
@@ -161,7 +172,14 @@ function parseGenericOCRText(rawText) {
     invoice_date = `${y}-${m}-${d}`;
   }
 
-  // 4. Estrazione Matematica Righe Prodotto (q * u = t)
+  // 4. Totale Documento (incluso IVA se presente nella fattura)
+  let total_amount = 0;
+  const totalMatch = rawText.match(/(?:totale\s*(?:fattura|documento|doc|complessivo|importo|generale)?|totale\s*:?)\s*[:\-]?\s*€?\s*(\d+[.,]\d{2})/i);
+  if (totalMatch) {
+    total_amount = parseFloat(totalMatch[1].replace(',', '.'));
+  }
+
+  // 5. Estrazione Matematica Righe Prodotto (q * u = t)
   const items = [];
   for (const line of lines) {
     if (/\b(totale|imponibile|iva|iban|pagamento|banca|p\.iva|destinatario|pizzeria|spett\.le|descrizione|articolo)\b/i.test(line)) continue;
@@ -191,11 +209,24 @@ function parseGenericOCRText(rawText) {
 
             if (q > 0 && u > 0 && t > 0 && Math.abs(q * u - t) < 0.1) {
               let itemName = line;
-              itemName = itemName.replace(new RegExp(`\\b${q}\\b`, 'g'), '');
-              itemName = itemName.replace(new RegExp(`\\b${u}\\b`, 'g'), '');
-              itemName = itemName.replace(new RegExp(`\\b${t}\\b`, 'g'), '');
-              itemName = itemName.replace(/\b(litri|litro|buste|busta|cartoni|cartone|pezzi|pezzo|pz|kg|€|%)\b/gi, '');
-              itemName = itemName.replace(/\s+/g, ' ').trim();
+              // Clean product code prefixes (e.g. BUF-01, ART-102)
+              itemName = itemName.replace(/^[A-Z0-9]{2,8}[-\/][0-9]{2,8}\s*/i, '');
+              itemName = itemName.replace(/^(?:cod|art|rif)\.?\s*[A-Z0-9-]+\s*/i, '');
+
+              const words = itemName.split(/\s+/);
+              const cleanWords = words.filter((w) => {
+                const c = w.replace('€', '').replace('%', '').replace(',', '.').trim();
+                if (!c) return false;
+                const val = parseFloat(c);
+                if (!isNaN(val) && (val === q || val === u || val === t || /^\d+([.,]\d+)?$/.test(c))) {
+                  return false;
+                }
+                if (/^(€|%|kg|litri|litro|buste|busta|cartoni|pezzi|pz)$/i.test(w)) {
+                  return false;
+                }
+                return true;
+              });
+              itemName = cleanWords.join(' ').trim();
 
               items.push({
                 item_name: itemName || 'Prodotto Rilevato',
@@ -212,7 +243,10 @@ function parseGenericOCRText(rawText) {
     }
   }
 
-  const total_amount = items.reduce((sum, item) => sum + item.total_price, 0);
+  // Se non è stato trovato il totale fattura stampato, usiamo la somma delle righe
+  if (!total_amount && items.length > 0) {
+    total_amount = items.reduce((sum, item) => sum + item.total_price, 0);
+  }
 
   return {
     supplier_name,
@@ -222,57 +256,6 @@ function parseGenericOCRText(rawText) {
     total_amount: Number(total_amount.toFixed(2)),
     payment_status: 'da_pagare',
     items,
-  };
-}
-
-async function getFallbackInvoiceData(file) {
-  const today = new Date().toISOString().split('T')[0];
-  const nextMonth = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const fileName = file?.name?.toLowerCase() || '';
-
-  if (fileName.includes('mulino') || fileName.includes('capriati')) {
-    return {
-      supplier_name: 'Mulino Capriati SpA',
-      invoice_number: 'FT-2026/899',
-      invoice_date: '2026-09-25',
-      due_date: nextMonth,
-      total_amount: 180.00,
-      payment_status: 'da_pagare',
-      items: [
-        { item_name: 'Farina Tipo 00 Pizza Sacchi 25kg', quantity: 100.0, unit_of_measure: 'kg', total_price: 115.00, unit_price: 1.15 },
-        { item_name: 'Semola Rimacinata', quantity: 50.0, unit_of_measure: 'kg', total_price: 65.00, unit_price: 1.30 },
-      ],
-    };
-  }
-
-  if (fileName.includes('vesuvio') || fileName.includes('food')) {
-    return {
-      supplier_name: 'Vesuvio Food Distribuzione',
-      invoice_number: 'FT-2026/1044',
-      invoice_date: '2026-09-29',
-      due_date: nextMonth,
-      total_amount: 377.20,
-      payment_status: 'da_pagare',
-      items: [
-        { item_name: 'Pelati San Marzano DOP 3kg', quantity: 30.0, unit_of_measure: 'kg', total_price: 72.00, unit_price: 2.40 },
-        { item_name: 'Olio Extra Vergine Oliva', quantity: 20.0, unit_of_measure: 'litri', total_price: 190.00, unit_price: 9.50 },
-        { item_name: 'Prosciutto Crudo Parma DOP', quantity: 6.0, unit_of_measure: 'kg', total_price: 115.20, unit_price: 19.20 },
-      ],
-    };
-  }
-
-  return {
-    supplier_name: 'Latticini Rossi Srl',
-    invoice_number: 'FT-4892/2026',
-    invoice_date: today,
-    due_date: nextMonth,
-    total_amount: 245.50,
-    payment_status: 'da_pagare',
-    items: [
-      { item_name: 'Mozzarella di Bufala DOP', quantity: 15.0, unit_of_measure: 'kg', total_price: 127.50, unit_price: 8.50 },
-      { item_name: 'Fior di Latte Appennino', quantity: 10.0, unit_of_measure: 'kg', total_price: 62.00, unit_price: 6.20 },
-      { item_name: 'Prosciutto Crudo di Parma', quantity: 3.0, unit_of_measure: 'kg', total_price: 56.00, unit_price: 18.66 },
-    ],
   };
 }
 
