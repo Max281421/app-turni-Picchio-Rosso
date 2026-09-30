@@ -13,35 +13,10 @@ export default function InventoryDashboard() {
   const [showNewItemModal, setShowNewItemModal] = useState(false);
   const [selectedPriceHistoryItem, setSelectedPriceHistoryItem] = useState(null);
 
-  // State Dati
-  const [inventoryItems, setInventoryItems] = useState([
-    { id: '1', name: 'Mozzarella di Bufala DOP', category: 'Latticini', unit_of_measure: 'kg', current_stock: 25.0, min_stock_alert: 10.0, last_unit_price: 8.5 },
-    { id: '2', name: 'Fior di Latte Appennino', category: 'Latticini', unit_of_measure: 'kg', current_stock: 40.0, min_stock_alert: 15.0, last_unit_price: 6.2 },
-    { id: '3', name: 'Farina Tipo 00 Pizza', category: 'Farine', unit_of_measure: 'kg', current_stock: 150.0, min_stock_alert: 50.0, last_unit_price: 1.1 },
-    { id: '4', name: 'Pelati San Marzano DOP', category: 'Conserve', unit_of_measure: 'kg', current_stock: 60.0, min_stock_alert: 20.0, last_unit_price: 2.3 },
-    { id: '5', name: 'Olio Extra Vergine di Oliva', category: 'Consumabili', unit_of_measure: 'litri', current_stock: 18.0, min_stock_alert: 5.0, last_unit_price: 9.8 },
-    { id: '6', name: 'Prosciutto Crudo di Parma', category: 'Salumi', unit_of_measure: 'kg', current_stock: 8.5, min_stock_alert: 3.0, last_unit_price: 18.5 },
-  ]);
-
-  const [invoices, setInvoices] = useState([
-    {
-      id: 'inv-1',
-      supplier_name: 'Latticini Rossi Srl',
-      invoice_number: 'FT-2026/098',
-      invoice_date: '2026-09-20',
-      total_amount: 245.5,
-      payment_status: 'pagato',
-      items: [
-        { item_name: 'Mozzarella di Bufala DOP', quantity: 15, unit_of_measure: 'kg', total_price: 127.5, unit_price: 8.5 },
-        { item_name: 'Fior di Latte Appennino', quantity: 10, unit_of_measure: 'kg', total_price: 62.0, unit_price: 62.0 / 10 },
-      ],
-    },
-  ]);
-
-  const [suppliers, setSuppliers] = useState([
-    { id: 'sup-1', name: 'Latticini Rossi Srl', phone: '081-5551234', email: 'ordini@latticinirossi.it' },
-    { id: 'sup-2', name: 'Mulino Capriati SpA', phone: '0823-777888', email: 'commerciale@mulinocapriati.it' },
-  ]);
+  // State Dati (Vergine / Vuoto per avvio pulito)
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
 
   // Caricamento dati da Supabase
   useEffect(() => {
