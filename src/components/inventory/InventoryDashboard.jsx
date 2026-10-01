@@ -65,7 +65,25 @@ export default function InventoryDashboard() {
       // Fetch Invoices
       const { data: invData, error: invErr } = await supabase.from('invoices').select('*, items:invoice_items(*)').order('created_at', { ascending: false });
       if (!invErr && invData && invData.length > 0) {
-        setInvoices(invData);
+        const formattedInvoices = invData.map((inv) => ({
+          id: inv.id,
+          supplier_name: inv.supplier_name_raw || 'Fornitore',
+          invoice_number: inv.invoice_number,
+          invoice_date: inv.invoice_date,
+          due_date: inv.due_date,
+          total_amount: inv.total_amount,
+          payment_status: inv.payment_status,
+          notes: inv.notes,
+          items: (inv.items || []).map((it) => ({
+            item_name: it.item_name_raw,
+            quantity: it.quantity,
+            unit_of_measure: it.unit_of_measure || 'cartoni',
+            pieces_per_package: it.pieces_per_package || 1,
+            unit_price: it.unit_price,
+            total_price: it.total_price,
+          })),
+        }));
+        setInvoices(formattedInvoices);
       }
 
       // Fetch Suppliers
@@ -309,6 +327,8 @@ export default function InventoryDashboard() {
             invoice_id: invIns.id,
             item_name_raw: it.item_name,
             quantity: it.quantity,
+            unit_of_measure: it.unit_of_measure || 'cartoni',
+            pieces_per_package: it.pieces_per_package || 1,
             unit_price: it.unit_price,
             total_price: it.total_price,
           }));
