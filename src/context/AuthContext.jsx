@@ -210,14 +210,24 @@ export function AuthProvider({ children }) {
     return userObj;
   };
 
+  const checkIsSelf = (targetEmployeeId) => {
+    if (!targetEmployeeId) return false;
+    const adminEmpId = employee?.id;
+    const adminAuthId = employee?.auth_user_id || user?.id;
+
+    if (adminEmpId && String(targetEmployeeId) === String(adminEmpId)) return true;
+    if (adminAuthId && String(targetEmployeeId) === String(adminAuthId)) return true;
+    return false;
+  };
+
   // Funzione per cambiare il ruolo di un utente (es. da Dipendente ad Admin)
   const updateEmployeeRole = async (employeeId, newRole) => {
     const supabase = getSupabaseClient();
     if (!supabase || !employeeId) return;
 
-    try {
-      const isSelf = employeeId === employee?.id || employeeId === employee?.auth_user_id || employeeId === user?.id;
+    const isSelf = checkIsSelf(employeeId);
 
+    try {
       if (isSelf) {
         await supabase.auth.updateUser({
           data: { ruolo: newRole }
@@ -232,22 +242,17 @@ export function AuthProvider({ children }) {
         .maybeSingle();
 
       if (!data) {
-        const { data: dataAuth, error: errorAuth } = await supabase
+        const { data: dataAuth } = await supabase
           .from('employees')
           .update({ ruolo: newRole })
           .eq('auth_user_id', employeeId)
           .select()
           .maybeSingle();
         data = dataAuth;
-        if (errorAuth) console.warn('DB update role auth_user_id error:', errorAuth);
-      }
-
-      if (error && !data) {
-        console.warn('DB update role id error:', error);
       }
 
       if (isSelf) {
-        setEmployee((prev) => prev ? { ...prev, ruolo: newRole } : { id: employeeId, auth_user_id: user?.id, ruolo: newRole });
+        setEmployee((prev) => (prev ? { ...prev, ruolo: newRole } : null));
       }
       return data || { ruolo: newRole };
     } catch (err) {
@@ -258,20 +263,19 @@ export function AuthProvider({ children }) {
   // Funzione per cambiare il nome utente (Nome e Cognome)
   const updateEmployeeName = async (employeeId, newName) => {
     const supabase = getSupabaseClient();
-    if (!supabase || !newName) return;
+    if (!supabase || !employeeId || !newName) return;
 
     const trimmedName = newName.trim();
+    const isSelf = checkIsSelf(employeeId);
 
     try {
-      const isSelf = employeeId === employee?.id || employeeId === employee?.auth_user_id || employeeId === user?.id;
-
       if (isSelf) {
         await supabase.auth.updateUser({
           data: { nome: trimmedName }
         });
       }
 
-      let { data, error } = await supabase
+      let { data } = await supabase
         .from('employees')
         .update({ nome: trimmedName })
         .eq('id', employeeId)
@@ -279,22 +283,17 @@ export function AuthProvider({ children }) {
         .maybeSingle();
 
       if (!data) {
-        const { data: dataAuth, error: errorAuth } = await supabase
+        const { data: dataAuth } = await supabase
           .from('employees')
           .update({ nome: trimmedName })
           .eq('auth_user_id', employeeId)
           .select()
           .maybeSingle();
         data = dataAuth;
-        if (errorAuth) console.warn('DB update name auth_user_id error:', errorAuth);
-      }
-
-      if (error && !data) {
-        console.warn('DB update name id error:', error);
       }
 
       if (isSelf) {
-        setEmployee((prev) => prev ? { ...prev, nome: trimmedName } : { id: employeeId, auth_user_id: user?.id, nome: trimmedName });
+        setEmployee((prev) => (prev ? { ...prev, nome: trimmedName } : null));
       }
 
       return data || { nome: trimmedName };
@@ -310,9 +309,9 @@ export function AuthProvider({ children }) {
 
     try {
       const trimmedAlias = (newAlias || '').trim();
-      const isSelf = employee?.id === employeeId || employee?.auth_user_id === user?.id;
+      const isSelf = checkIsSelf(employeeId);
 
-      let { data, error } = await supabase
+      let { data } = await supabase
         .from('employees')
         .update({ alias: trimmedAlias })
         .eq('id', employeeId)
@@ -320,22 +319,17 @@ export function AuthProvider({ children }) {
         .maybeSingle();
 
       if (!data) {
-        const { data: dataAuth, error: errorAuth } = await supabase
+        const { data: dataAuth } = await supabase
           .from('employees')
           .update({ alias: trimmedAlias })
           .eq('auth_user_id', employeeId)
           .select()
           .maybeSingle();
         data = dataAuth;
-        if (errorAuth) console.warn('DB update alias auth_user_id error:', errorAuth);
-      }
-
-      if (error && !data) {
-        console.warn('DB update alias id error:', error);
       }
 
       if (isSelf) {
-        setEmployee((prev) => prev ? { ...prev, alias: trimmedAlias } : null);
+        setEmployee((prev) => (prev ? { ...prev, alias: trimmedAlias } : null));
       }
 
       return data || { alias: trimmedAlias };
@@ -352,18 +346,11 @@ export function AuthProvider({ children }) {
 
     try {
       const formattedMansioni = Array.isArray(newMansioni) ? newMansioni : [];
+      const isSelf = checkIsSelf(employeeId);
 
       try {
         localStorage.setItem(`APP_TURNI_MANSIONI_${employeeId}`, JSON.stringify(formattedMansioni));
-        if (employee?.auth_user_id) {
-          localStorage.setItem(`APP_TURNI_MANSIONI_${employee.auth_user_id}`, JSON.stringify(formattedMansioni));
-        }
-        if (employee?.id) {
-          localStorage.setItem(`APP_TURNI_MANSIONI_${employee.id}`, JSON.stringify(formattedMansioni));
-        }
       } catch (e) {}
-
-      const isSelf = employee?.id === employeeId || employee?.auth_user_id === user?.id || employee?.auth_user_id === employeeId;
 
       let data = null;
       if (supabase) {
@@ -387,12 +374,12 @@ export function AuthProvider({ children }) {
             data = d2;
           }
         } catch (dbErr) {
-          console.warn('DB update mansioni error (handled with LocalStorage fallback):', dbErr);
+          console.warn('DB update mansioni error:', dbErr);
         }
       }
 
       if (isSelf) {
-        setEmployee((prev) => prev ? { ...prev, mansioni: formattedMansioni } : null);
+        setEmployee((prev) => (prev ? { ...prev, mansioni: formattedMansioni } : null));
       }
 
       return data || { mansioni: formattedMansioni };
@@ -405,28 +392,31 @@ export function AuthProvider({ children }) {
   // Funzione per eliminare l'account o un dipendente
   const deleteAccount = async (targetEmployeeId) => {
     const supabase = getSupabaseClient();
-    if (!supabase) return;
+    if (!supabase || !targetEmployeeId) return;
+
+    const isSelf = checkIsSelf(targetEmployeeId);
 
     try {
-      const isSelf = employee?.id === targetEmployeeId || employee?.auth_user_id === user?.id;
-
-      // 1. Elimina i turni associati
+      // 1. Elimina i turni del dipendente selezionato
       await supabase
         .from('shifts')
         .delete()
         .eq('employee_id', targetEmployeeId);
 
-      // 2. Elimina dalla tabella employees
-      const { error: empError } = await supabase
+      // 2. Elimina la riga del dipendente selezionato dalla tabella employees
+      let { error: empError } = await supabase
         .from('employees')
         .delete()
-        .or(`id.eq.${targetEmployeeId},auth_user_id.eq.${user?.id}`);
+        .eq('id', targetEmployeeId);
 
       if (empError) {
-        console.warn('DB delete warning:', empError);
+        await supabase
+          .from('employees')
+          .delete()
+          .eq('auth_user_id', targetEmployeeId);
       }
 
-      // 3. Se l'utente elimina se stesso, disconnetti la sessione
+      // 3. Soltanto SE l'utente sta eliminando il PROPRIO account, disconnetti la sessione
       if (isSelf) {
         await supabase.auth.signOut();
         setUser(null);
@@ -434,7 +424,7 @@ export function AuthProvider({ children }) {
       }
     } catch (err) {
       console.error('Error deleting account:', err);
-      if (employee?.id === targetEmployeeId || employee?.auth_user_id === user?.id) {
+      if (isSelf) {
         await supabase.auth.signOut();
         setUser(null);
         setEmployee(null);
