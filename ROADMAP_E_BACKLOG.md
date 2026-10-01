@@ -10,7 +10,7 @@ related_notes:
   - "[[ISTRUZIONI_DIPENDENTI]]"
   - "[[SUPABASE_SETUP]]"
   - "[[prompt-antigravity-app-turni]]"
-last_updated: 2026-09-27
+last_updated: 2026-10-01
 ---
 
 # 🗺️ ROADMAP E BACKLOG PROGETTO - APP TURNI
@@ -34,24 +34,6 @@ In questo documento sono tracciate le prossime funzionalità concordate, le pers
 ### 📌 2. Sistema di Notifiche (In-App / Push / Email)
 - **Stato**: *In Valutazione Futura (Analisi di fattibilità completata)*
 - **Obiettivo**: Inviare avvisi in tempo reale per cambi turno o comunicazioni dell'amministratore.
-
----
-
-### 📌 3. Modifica Anagrafica Ingredienti Esistenti (Magazzino)
-- **Stato**: *🟡 Programmato (Fase 2 Magazzino)*
-- **Obiettivo**: Consentire l'editing completo dei dati degli ingredienti già registrati in inventario (nome, categoria, unità di misura, soglia di scorta minima) oltre alla semplice rettifica della quantità.
-
----
-
-### 📌 4. Restyling Grafico & Layout Pagina Magazzino
-- **Stato**: *🟡 Programmato (Fase 2 Magazzino)*
-- **Obiettivo**: Affinare e migliorare la resa grafica, l'ergonomia visiva e il layout complessivo della sezione Magazzino in base alle specifiche dettagliate che fornirà il titolare.
-
----
-
-### 📌 5. Collaudo e Testing Scansione Fatture da Foto (AI Vision)
-- **Stato**: *🟡 Programmato (Fase 2 Magazzino)*
-- **Obiettivo**: Eseguire test sul campo con foto di fatture reali e DDT cartacei per affinare la precisione di lettura dei prodotti, delle quantità e dei prezzi al kg (€/kg).
 
 ---
 
@@ -88,9 +70,13 @@ In questo documento sono tracciate le prossime funzionalità concordate, le pers
 | **Esclusione Account Specifici dai PDF Commercialista** | Commercialista | ✅ Completato | Esclusi "Angelo Giuliano", "Antonio Rocco", "Saverio Nicoscia" dai PDF riepilogativi |
 | **Pulsante Unificato "Modifica Account" (Admin)** | Admin / UX | ✅ Completato | Pulsante singolo `⚙️ Modifica Account` che apre `ProfileModal.jsx` per qualsiasi dipendente |
 | **Gestione Magazzino, Inventario & Scansione Fatture AI Vision** | Magazzino / AI | ✅ Completato | Giacenze ingredienti, avvisi scorte minime, lettura foto fatture con Gemini Vision, auto-carico e archivio scadenze |
-| **Modifica ed Eliminazione Ingredienti & Fatture** | Magazzino / UI | ✅ Completato | Editing completo dati ingredienti/fatture, eliminazione con conferma e tendine espandibili verticali |
-| **Restyling Grafico & Layout Pagina Magazzino** | UI / Design | 🟡 Programmato | Affinamento grafica e disposizione elementi su indicazioni del titolare |
-| **Collaudo e Testing Scansione Fatture da Foto** | AI / Testing | 🟡 Programmato | Test con foto reali di fatture/DDT per calibrazione OCR ed estrazione €/kg |
+| **Modifica ed Eliminazione Dati Magazzino & Fatture** | Magazzino / UX | ✅ Completato | Tasti modifica/eliminazione su ingredienti e fatture, voci incolonnate in verticale a scomparsa |
+| **Storico Prezzi & Confronto Fornitori Ingrediente** | Magazzino / Analytics | ✅ Completato | Metriche sintetiche (€/kg), confronto fornitori e timeline acquisti con badge trend % (`+X% 📈` / `-X% 📉`) |
+| **Fix Grafico & Allineamento Centrato Icone** | UI / Design | ✅ Completato | Sostituita regola CSS non valida con `justifyContent: 'center'` su tutti i pulsanti ed i box |
+| **Test Lettura Fatture Reali da Foto (Gemini Vision)** | Magazzino / AI | ✅ Completato | Testato su DDT reali fornitori (es. Stefani Group) con 100% estrazione esatta dei dati |
+| **Gestione Pezzi per Cartone (qxc) e Conteggio Bottiglie** | Magazzino / AI | ✅ Completato | Campo `qxc`, calcolo bottiglie totali, rimozione suffissi `x24` dal nome e badge visivi |
+| **Persistenza LocalStorage & Sincronizzazione Cloud Supabase** | Magazzino / Cloud | ✅ Completato | Sincronizzazione automatica due vie PC/Smartphone e fix permessi RLS (error 42501) |
+| **Fix Critico Auth e Isolamento Profilo Admin** | Sicurezza | ✅ Completato | Risolto bug cancellazione admin durante rimozione dipendenti con helper `checkIsSelf` |
 | **Ferie / Indisponibilità Pizzeria** | Pizzeria | 🟡 Programmato | Da definire con regole specifiche pizzeria |
 | **Sistema di Notifiche** | Feature | ⚪ In Valutazione | Fattibile (In-App / Push / Email) |
 

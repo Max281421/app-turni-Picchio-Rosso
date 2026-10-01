@@ -11,7 +11,7 @@ related_notes:
   - "[[ISTRUZIONI_DIPENDENTI]]"
   - "[[SUPABASE_SETUP]]"
   - "[[prompt-antigravity-app-turni]]"
-last_updated: 2026-09-09
+last_updated: 2026-10-01
 ---
 
 # App Turni Ristorante & Catering 🍽️
@@ -30,19 +30,11 @@ Applicazione Web Progressive Web App (PWA) Full-Stack per la gestione dei turni 
   - **Publishable / Anon Key**: `sb_publishable_sOd-X1rlfMbyBwJ2tVdbUw_Q3tZf-oi`
   - **Database Password**: `[Inserisci la password del DB Produzione]`
 
-### 🧪 Ambiente di Test & Beta (Ramo `beta`)
-- **App Online (Vercel Preview Beta)**: [https://app-turni-git-beta-max-s-lab.vercel.app](https://app-turni-git-beta-max-s-lab.vercel.app)
-- **Repository GitHub (Ramo Beta)**: [https://github.com/Max281421/app-turni-Picchio-Rosso/tree/beta](https://github.com/Max281421/app-turni-Picchio-Rosso/tree/beta)
-- **Database Supabase Beta**:
-  - **Project URL**: `https://aexlzsgmupwbyqwoyvoh.supabase.co`
-  - **Publishable / Anon Key**: `sb_publishable_RtEies-3GqL5H7KaV4oaqg_XfaTmZyr`
-  - **Database Password**: `[Password impostata per il DB Beta]`
-
 ---
 
 ## 📁 Percorso Codice Sorgente Progetto
 Il codice sorgente dell'applicazione risiede sul PC al seguente percorso:
-`C:\Users\aller\OneDrive\Documenti\altro\App Turni`
+`C:\Users\aller\Documents\altro\App Turni`
 
 ---
 
@@ -51,7 +43,7 @@ Il codice sorgente dell'applicazione risiede sul PC al seguente percorso:
 Per aggiornare l'applicazione online dopo una modifica al codice:
 1. Apri il terminale nella cartella del progetto:
    ```bash
-   cd "C:\Users\aller\OneDrive\Documenti\altro\App Turni"
+   cd "C:\Users\aller\Documents\altro\App Turni"
    ```
 2. Esegui il comando di pubblicazione automatica su Vercel:
    ```bash
@@ -165,6 +157,34 @@ Per aggiornare l'applicazione online dopo una modifica al codice:
 - **Scansione Fatture AI (`InvoiceScanForm.jsx` & `geminiVision.js`)**: Scatto foto da fotocamera smartphone o caricamento file/PDF ed estrazione automatica tramite **Vision AI** di Fornitore, N° Fattura, Data, Totale e la lista prodotti con quantità e **prezzo al kg (€/kg)**. Conferma guidata con auto-carico immediato nell'inventario.
 - **Archivio Fatture & Scadenzario (`InvoiceArchive.jsx`)**: Registro con riepilogo della spesa mensile (€), scadenze pagamenti, filtri di stato (*Pagato, Da Pagare, Scaduto*) e toggle rapido a 1-tap.
 - **Anagrafica Fornitori (`SupplierModal.jsx`)**: Gestione contatti e ditte fornitori.
+
+### ✏️ 21. Modifica, Eliminazione Dati & Viste Dettaglio a Scomparsa (Ingrediente e Fatture)
+- **Modifica ed Eliminazione Ingredienti (`InventoryList.jsx`)**: Tasto di modifica `Edit3` e cancellazione per ciascun ingrediente registrato.
+- **Modifica ed Eliminazione Fatture (`InvoiceArchive.jsx`)**: Modifica completa dei dati della fattura (fornitore, n° documento, totale, date, stato pagamento) ed eliminazione definitiva dell'intero documento.
+- **Ingredienti in Fattura Incolonnati in Verticale**: Per ogni fattura salvata, l'elenco degli ingredienti contenuti è disposto verticalmente e nascosto di default, espandibile a scomparsa con 1-tap sull'entità.
+
+### 📈 22. Storico Prezzi & Confronto Fornitori per Ingrediente (`PriceHistoryModal.jsx`)
+- **Metriche Sintetiche**: Ultimo prezzo, prezzo minimo, massimo e prezzo medio al kg/unità calcolati in automatico per ogni ingrediente.
+- **Confronto tra Fornitori**: Tabella comparativa dei prezzi praticati da diversi fornitori per lo stesso ingrediente con indicazione dell'ultima consegna e del range di prezzo.
+- **Cronologia Acquisti & Badge Trend %**: Timeline storica degli acquisti con badge colorati di variazione percentuale rispetto all'acquisto precedente (`+X% 📈` o `-X% 📉`).
+
+### 🎨 23. Perfezionamento Layout Dark Glassmorphic & Fix Centratura Icone
+- **Allineamento Icone Standardizzato**: Corretta la centratura di tutte le icone dell'interfaccia (`justifyContent: 'center'`) sia nei box fluttuanti che sui pulsanti d'azione da mobile PWA e da desktop.
+
+### 📦 24. Gestione Pezzi per Cartone (qxc) e Conteggio Bottiglie
+- **Tracciamento Bottiglie & Unità Cartone**: Quando viene selezionata l'unità di misura "Cartone" per bevande o articoli confezionati, l'app abilita il campo dedicato **Pz / Cartone (qxc)** (`pieces_per_package`).
+- **Calcolo Automatico Giacenze Bottiglie**: Visualizzazione dinamica e immediata del numero totale di bottiglie/pezzi singoli (es. `5 cartoni × 24 pz = 120 bottiglie totali`) con badge dedicati sia nel form di scansione fattura (`InvoiceScanForm.jsx`), sia nell'elenco magazzino (`InventoryList.jsx`), sia nello storico fatture (`InvoiceArchive.jsx`).
+- **Pulizia del Nome dell'Ingrediente**: Rimozione automatica delle indicazioni di pezzi per cartone (es. `x24`, `x15`, `x12`) dal nome dell'ingrediente durante la scansione AI Vision (`scan-invoice.js`), separando la descrizione del prodotto dalla sua confezione.
+
+### 🔄 25. Persistenza Locale (`localStorage`) e Sincronizzazione Cloud Supabase Multi-Dispositivo
+- **Salvataggio Istantaneo Locale**: Archiviazione immediata in `localStorage` su PC e Smartphone per evitare perdite di dati o rallentamenti di rete.
+- **Sincronizzazione Automatica Cloud**: Implementata la funzione `syncLocalWithSupabase` in `InventoryDashboard.jsx` che allinea automaticamente il database Supabase cloud e il dispositivo locale ad ogni apertura/ricaricamento dell'app.
+- **Risoluzione Permessi SQL RLS (Error 42501)**: Aggiornate le policy di Row Level Security (RLS) e concessi i permessi `GRANT ALL ON TABLE ... TO anon, authenticated, service_role` per garantire la sincronizzazione bidirezionale trasparente tra PC e smartphone.
+- **Pulizia Dati Demo**: Rimossi definitivamente dal database Supabase i 6 articoli di test iniziali per evitare contaminazioni nell'inventario reale.
+
+### 🔒 26. Fix Critico Sicurezza Auth (`deleteAccount` e `updateEmployeeRole`)
+- **Isolamento Profilo Admin**: Risolto il bug in `AuthContext.jsx` dove l'eliminazione o il cambio di ruolo di un altro dipendente tramite query Supabase `.or('id.eq.TARGET,auth_user_id.eq.ADMIN')` provocava accidentalmente la cancellazione/alterazione del profilo dell'admin esecutore ed il conseguente logout forzato.
+- **Helper `checkIsSelf`**: Aggiunta la funzione helper `checkIsSelf(targetId)` per verificare prima di ogni mutazione se l'operazione riguarda il profilo dell'utente correntemente autenticato, garantendo il totale isolamento dei ruoli e la protezione degli account Admin.
 
 ---
 

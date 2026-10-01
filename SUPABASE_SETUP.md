@@ -24,7 +24,7 @@ Guida semplice e dettagliata per configurare il backend gratuito di Supabase per
 2. Clicca in alto su **New query**.
 3. Incolla lo **Script Unificato Finale Completo** riportato di seguito.
 4. Clicca sul pulsante **Run** in basso a destra.
-5. Vedrai comparire il messaggio `Success. No rows returned`. Tutte le tabelle (`employees`, `shifts`, `availabilities`, `planned_shifts`), i permessi `GRANT` e le policy RLS saranno pronti all'uso!
+5. Vedrai comparire il messaggio `Success. No rows returned`. Tutte le tabelle (`employees`, `shifts`, `availabilities`, `planned_shifts`, `suppliers`, `inventory_items`, `invoices`, `invoice_items`, `inventory_movements`), i permessi `GRANT` e le policy RLS saranno pronti all'uso!
 
 ```sql
 -- ========================================================
@@ -180,7 +180,6 @@ ON public.planned_shifts FOR ALL
 USING (true)
 WITH CHECK (true);
 
--- PERMESSI GRANT FONDAMENTALI PER L'API SUPABASE (AUTHENTICATED E ANON)
 -- 5. TABELLE MAGAZZINO, INVENTARIO E ARCHIVIO FATTURE FORNITORI (AI VISION)
 CREATE TABLE IF NOT EXISTS public.suppliers (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -200,9 +199,13 @@ CREATE TABLE IF NOT EXISTS public.inventory_items (
   current_stock NUMERIC(10, 2) DEFAULT 0.00,
   min_stock_alert NUMERIC(10, 2) DEFAULT 5.00,
   last_unit_price NUMERIC(10, 2) DEFAULT 0.00,
+  pieces_per_package INT DEFAULT 1,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Assicura che la colonna pieces_per_package esista anche su tabelle preesistenti
+ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS pieces_per_package INT DEFAULT 1;
 
 CREATE TABLE IF NOT EXISTS public.invoices (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -226,10 +229,14 @@ CREATE TABLE IF NOT EXISTS public.invoice_items (
   inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE SET NULL,
   item_name_raw VARCHAR(255) NOT NULL,
   quantity NUMERIC(10, 2) DEFAULT 0.00,
+  pieces_per_package INT DEFAULT 1,
   total_price NUMERIC(10, 2) DEFAULT 0.00,
   unit_price NUMERIC(10, 2) DEFAULT 0.00,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Assicura che la colonna pieces_per_package esista anche su tabelle preesistenti
+ALTER TABLE public.invoice_items ADD COLUMN IF NOT EXISTS pieces_per_package INT DEFAULT 1;
 
 CREATE TABLE IF NOT EXISTS public.inventory_movements (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -249,22 +256,28 @@ ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.invoice_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_movements ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Accesso utenti autenticati su suppliers" ON public.suppliers FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Accesso utenti autenticati su inventory_items" ON public.inventory_items FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Accesso utenti autenticati su invoices" ON public.invoices FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Accesso utenti autenticati su invoice_items" ON public.invoice_items FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Accesso utenti autenticati su inventory_movements" ON public.inventory_movements FOR ALL USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Accesso completo suppliers per tutti" ON public.suppliers;
+DROP POLICY IF EXISTS "Accesso completo inventory_items per tutti" ON public.inventory_items;
+DROP POLICY IF EXISTS "Accesso completo invoices per tutti" ON public.invoices;
+DROP POLICY IF EXISTS "Accesso completo invoice_items per tutti" ON public.invoice_items;
+DROP POLICY IF EXISTS "Accesso completo inventory_movements per tutti" ON public.inventory_movements;
 
-GRANT ALL ON TABLE public.suppliers TO authenticated, anon;
-GRANT ALL ON TABLE public.inventory_items TO authenticated, anon;
-GRANT ALL ON TABLE public.invoices TO authenticated, anon;
-GRANT ALL ON TABLE public.invoice_items TO authenticated, anon;
-GRANT ALL ON TABLE public.inventory_movements TO authenticated, anon;
+CREATE POLICY "Accesso completo suppliers per tutti" ON public.suppliers FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Accesso completo inventory_items per tutti" ON public.inventory_items FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Accesso completo invoices per tutti" ON public.invoices FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Accesso completo invoice_items per tutti" ON public.invoice_items FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Accesso completo inventory_movements per tutti" ON public.inventory_movements FOR ALL USING (true) WITH CHECK (true);
 
-GRANT ALL ON TABLE public.employees TO authenticated, anon;
-GRANT ALL ON TABLE public.shifts TO authenticated, anon;
-GRANT ALL ON TABLE public.availabilities TO authenticated, anon;
-GRANT ALL ON TABLE public.planned_shifts TO authenticated, anon;
+GRANT ALL ON TABLE public.suppliers TO authenticated, anon, service_role;
+GRANT ALL ON TABLE public.inventory_items TO authenticated, anon, service_role;
+GRANT ALL ON TABLE public.invoices TO authenticated, anon, service_role;
+GRANT ALL ON TABLE public.invoice_items TO authenticated, anon, service_role;
+GRANT ALL ON TABLE public.inventory_movements TO authenticated, anon, service_role;
+
+GRANT ALL ON TABLE public.employees TO authenticated, anon, service_role;
+GRANT ALL ON TABLE public.shifts TO authenticated, anon, service_role;
+GRANT ALL ON TABLE public.availabilities TO authenticated, anon, service_role;
+GRANT ALL ON TABLE public.planned_shifts TO authenticated, anon, service_role;
 ```
 
 ---
@@ -296,6 +309,3 @@ Per fare in modo che i dipendenti possano registrarsi ed accedere subito senza d
 - **Project URL**: `https://anipnkftlyemgpulycqo.supabase.co`
 - **Publishable Key**: `sb_publishable_sOd-X1rlfMbyBwJ2tVdbUw_Q3tZf-oi`
 - **Target Vercel**: `Production`
-
-
-
