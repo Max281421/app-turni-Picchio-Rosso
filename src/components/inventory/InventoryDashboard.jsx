@@ -47,24 +47,76 @@ export default function InventoryDashboard() {
   }, [suppliers]);
 
   // Caricamento dati remoti da Supabase (se configurato)
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  // Sincronizzazione automatica bidirezionale tra Locale e Supabase Cloud
+  const syncLocalWithSupabase = async () => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
 
     try {
-      // Fetch Inventory Items
-      const { data: itemsData, error: itemsErr } = await supabase.from('inventory_items').select('*').order('name');
-      if (!itemsErr && itemsData && itemsData.length > 0) {
+      // 1. Invia le fatture locali a Supabase se non ancora presenti nel cloud
+      const localInvoices = loadLocalStorage('APP_TURNI_INVOICES', []);
+      const { data: remoteInvoices, error: rInvErr } = await supabase.from('invoices').select('invoice_number');
+      
+      if (!rInvErr) {
+        const remoteNumbers = new Set((remoteInvoices || []).map((r) => r.invoice_number));
+
+        for (const inv of localInvoices) {
+          if (!remoteNumbers.has(inv.invoice_number)) {
+            const { data: invIns } = await supabase.from('invoices').insert([{
+              supplier_name_raw: inv.supplier_name,
+              invoice_number: inv.invoice_number,
+              invoice_date: inv.invoice_date,
+              due_date: inv.due_date,
+              total_amount: inv.total_amount,
+              payment_status: inv.payment_status,
+            }]).select().single();
+
+            if (invIns?.id && inv.items?.length > 0) {
+              const itemRows = inv.items.map((it) => ({
+                invoice_id: invIns.id,
+                item_name_raw: it.item_name,
+                quantity: it.quantity,
+                unit_of_measure: it.unit_of_measure || 'cartoni',
+                pieces_per_package: it.pieces_per_package || 1,
+                unit_price: it.unit_price,
+                total_price: it.total_price,
+              }));
+              await supabase.from('invoice_items').insert(itemRows);
+            }
+          }
+        }
+      }
+
+      // 2. Invia gli ingredienti locali a Supabase se non ancora presenti nel cloud
+      const localItems = loadLocalStorage('APP_TURNI_INVENTORY_ITEMS', []);
+      const { data: remoteItems, error: rItemsErr } = await supabase.from('inventory_items').select('name');
+      
+      if (!rItemsErr) {
+        const remoteNames = new Set((remoteItems || []).map((r) => (r.name || '').toLowerCase()));
+
+        for (const item of localItems) {
+          if (!remoteNames.has((item.name || '').toLowerCase())) {
+            await supabase.from('inventory_items').insert([{
+              name: item.name,
+              category: item.category,
+              unit_of_measure: item.unit_of_measure,
+              pieces_per_package: item.pieces_per_package || 1,
+              current_stock: item.current_stock,
+              min_stock_alert: item.min_stock_alert,
+              last_unit_price: item.last_unit_price,
+            }]);
+          }
+        }
+      }
+
+      // 3. Scarica i dati aggiornati dal Cloud
+      const { data: itemsData } = await supabase.from('inventory_items').select('*').order('name');
+      if (itemsData && itemsData.length > 0) {
         setInventoryItems(itemsData);
       }
 
-      // Fetch Invoices
-      const { data: invData, error: invErr } = await supabase.from('invoices').select('*, items:invoice_items(*)').order('created_at', { ascending: false });
-      if (!invErr && invData && invData.length > 0) {
+      const { data: invData } = await supabase.from('invoices').select('*, items:invoice_items(*)').order('created_at', { ascending: false });
+      if (invData && invData.length > 0) {
         const formattedInvoices = invData.map((inv) => ({
           id: inv.id,
           supplier_name: inv.supplier_name_raw || 'Fornitore',
@@ -86,15 +138,18 @@ export default function InventoryDashboard() {
         setInvoices(formattedInvoices);
       }
 
-      // Fetch Suppliers
-      const { data: supData, error: supErr } = await supabase.from('suppliers').select('*').order('name');
-      if (!supErr && supData && supData.length > 0) {
+      const { data: supData } = await supabase.from('suppliers').select('*').order('name');
+      if (supData && supData.length > 0) {
         setSuppliers(supData);
       }
     } catch (err) {
       console.log('Utilizzo dati locali di magazzino:', err);
     }
   };
+
+  useEffect(() => {
+    syncLocalWithSupabase();
+  }, []);
 
   // Aggiornamento Giacenza Manuale
   const handleUpdateStock = async (itemId, newStock) => {
