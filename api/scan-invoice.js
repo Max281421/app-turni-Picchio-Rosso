@@ -34,32 +34,49 @@ export default async function handler(req, res) {
     }
 
     const promptText = `
-Analizza questa immagine di fattura o documento di trasporto (DDT) di un fornitore per ristorante/pizzeria.
-Estrai esattamente i seguenti dati in formato JSON valido:
+Analizza questa foto di un documento di trasporto (DDT) / fattura per ristorante/pizzeria.
+Estrai i dati esatti in formato JSON strutturato con questa schema:
+
 {
-  "supplier_name": "Nome della ditta/fornitore",
-  "invoice_number": "Numero fattura o DDT",
+  "supplier_name": "Nome fornitore (es. STEFANI GROUP SRL)",
+  "invoice_number": "Numero bolla o fattura esatto (es. 01-B 057379)",
   "invoice_date": "YYYY-MM-DD",
   "due_date": "YYYY-MM-DD",
   "total_amount": 0.00,
   "payment_status": "da_pagare",
   "items": [
     {
-      "item_name": "Nome prodotto/ingrediente",
+      "item_name": "Nome prodotto pulito",
       "quantity": 0.00,
-      "unit_of_measure": "kg", 
+      "unit_of_measure": "cartoni", 
       "total_price": 0.00,
       "unit_price": 0.00
     }
   ]
 }
 
-Regole importanti:
-1. "total_amount" deve essere il TOTALE FINALE FATTURA / DOCUMENTO espresso sul documento (COMPRESO IVA/TASSE E SPESE, ad esempio "TOTALE FATTURA" o "TOTALE DOCUMENTO" o "TOTALE A PAGARE"), non solo l'imponibile dei singoli beni.
-2. "item_name" deve contenere la descrizione pulita del prodotto senza codici articolo iniziali (es. BUF-01, ART-123).
-3. "unit_of_measure" deve essere una tra: kg, litri, buste, cartoni, pezzi.
-4. "unit_price" è il prezzo al kg o per unità. Se non indicato esplicitamente, calcolalo dividendo total_price per quantity.
-5. Restituisci SOLO il JSON valido senza marcatori markdown o altro testo.
+Regole fondamentali di estrazione per massima precisione:
+
+1. INTETESTAZIONE E NUMERO DOCUMENTO:
+   - "invoice_number": Cerca il numero documento di consegna/bolla esatto (es. "01-B 057379" o "FT-2026/1044").
+   - "supplier_name": Ragione sociale del fornitore (es. "STEFANI GROUP SRL").
+   - "total_amount": Importo totale finale del documento comprensivo di IVA espresso in calce (es. 273.87).
+
+2. ESTROLAZIONE TABELLA PRODOTTI:
+   - Estrai TUTTI i prodotti/bevande/ingredienti consegnati nella tabella principale dei beni.
+   - NOMI PULITI E ACCURATI: Leggi fedelmente le descrizioni senza storpiare le parole (es. "LIPTON I.TEA PESCA 1/2 PET", "COCA COLA SLEEK LATT. 0.33", "MORETTI 1/3 VP", "PERONI 1/3 VP", "CORONA 1/3 VP", "S.BEN. 1/1 NAT TOWER PET x12").
+   - QUANTITÀ E UNITÀ:
+     * Nella colonna Quantità/UM, se sono indicati cartoni/casse (es. "5 CT" o "2 CT" o "1 CT"), imposta quantity col numero di cartoni (es. 5) e unit_of_measure = "cartoni" (oppure "pezzi" moltiplicando per i pezzi per cassa "qxc").
+   - PREZZO UNITARIO E TOTALE RIGA:
+     * "unit_price": Prezzo unitario al cartone/confezione dalla colonna "Prezzo" (es. 14.87 per 1 cartone di Coca Cola).
+     * "total_price": Prezzo totale dell'intera riga dalla colonna di destra "Totale" (es. 74.35 per 5 cartoni di Coca Cola = 5 * 14.87). NON scambiare mai il prezzo unitario con il totale riga!
+   - VERIFICA MATEMATICA: Assicurati sempre che total_price sia uguale a (quantity * unit_price).
+
+3. RIGOROSA ESCLUSIONE SEZIONI NON-PRODOTTO / IMBALLI:
+   - ESCLUDI sistematicamente qualsiasi tabella o riga in basso intitolata "A DEBITO", "CAUZIONI", "PALLETS EPAL", "BOMBOLE", "RESI IMBALLI" o "VUOTI A RENDERE".
+   - Quelli non sono ingredienti o bevande ma cauzioni/depositi di imballo a rendere che NON vanno caricati in magazzino.
+
+4. Restituisci SOLO il JSON valido senza marcatori markdown o altro testo.
 `;
 
     // 1. TENTATIVO CON OPENROUTER (Se configurato)
