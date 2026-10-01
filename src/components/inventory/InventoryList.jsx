@@ -18,6 +18,7 @@ export default function InventoryList({
   const [editName, setEditName] = useState('');
   const [editCategory, setEditCategory] = useState('Generale');
   const [editUnit, setEditUnit] = useState('kg');
+  const [editPiecesPerPackage, setEditPiecesPerPackage] = useState('24');
   const [editStock, setEditStock] = useState('0');
   const [editMinStock, setEditMinStock] = useState('5');
   const [editPrice, setEditPrice] = useState('0');
@@ -39,6 +40,7 @@ export default function InventoryList({
     setEditName(item.name || '');
     setEditCategory(item.category || 'Generale');
     setEditUnit(item.unit_of_measure || 'kg');
+    setEditPiecesPerPackage(item.pieces_per_package?.toString() || '24');
     setEditStock(item.current_stock?.toString() || '0');
     setEditMinStock(item.min_stock_alert?.toString() || '5');
     setEditPrice(item.last_unit_price?.toString() || '0');
@@ -53,6 +55,7 @@ export default function InventoryList({
       name: editName.trim(),
       category: editCategory,
       unit_of_measure: editUnit,
+      pieces_per_package: parseInt(editPiecesPerPackage) || 1,
       current_stock: parseFloat(editStock) || 0,
       min_stock_alert: parseFloat(editMinStock) || 0,
       last_unit_price: parseFloat(editPrice) || 0,
@@ -233,6 +236,11 @@ export default function InventoryList({
                     <span>
                       Ultimo prezzo: <strong style={{ color: '#38bdf8' }}>€ {Number(item.last_unit_price || 0).toFixed(2)} /{item.unit_of_measure}</strong>
                     </span>
+                    {['cartoni', 'ct', 'cf', 'casse', 'confezioni'].includes((item.unit_of_measure || '').toLowerCase()) && (
+                      <span style={{ color: '#34d399', fontWeight: 600 }}>
+                        🍾 Bottiglie totali: {(Number(item.current_stock || 0) * Number(item.pieces_per_package || 24)).toFixed(0)} pz ({item.pieces_per_package || 24} pz/ct • € {((Number(item.last_unit_price) || 0) / (Number(item.pieces_per_package) || 24)).toFixed(2)}/pz)
+                      </span>
+                    )}
                     <span>Soglia min: {item.min_stock_alert} {item.unit_of_measure}</span>
                   </div>
                 </div>
@@ -367,14 +375,30 @@ export default function InventoryList({
                     className="input-field"
                     style={{ width: '100%' }}
                   >
+                    <option value="cartoni">cartoni (CT/CF)</option>
                     <option value="kg">kg</option>
                     <option value="litri">litri</option>
                     <option value="buste">buste</option>
-                    <option value="cartoni">cartoni</option>
                     <option value="pezzi">pezzi</option>
                   </select>
                 </div>
               </div>
+
+              {['cartoni', 'ct', 'cf', 'casse', 'confezioni'].includes((editUnit || '').toLowerCase()) && (
+                <div>
+                  <label className="input-label" style={{ color: '#38bdf8' }}>Pezzi per Cartone / Cassa (qxc) *</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="1"
+                    required
+                    value={editPiecesPerPackage}
+                    onChange={(e) => setEditPiecesPerPackage(e.target.value)}
+                    className="input-field"
+                    style={{ width: '100%', borderColor: 'rgba(56, 189, 248, 0.4)', color: '#38bdf8', fontWeight: 700 }}
+                  />
+                </div>
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                 <div>

@@ -301,7 +301,12 @@ export default function InvoiceArchive({
                               {it.item_name}
                             </div>
                             <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                              Prezzo al kg/unità: <strong style={{ color: '#38bdf8' }}>€ {Number(it.unit_price || 0).toFixed(2)} /{it.unit_of_measure}</strong>
+                              Prezzo al cartone/unità: <strong style={{ color: '#38bdf8' }}>€ {Number(it.unit_price || 0).toFixed(2)} /{it.unit_of_measure}</strong>
+                              {['cartoni', 'ct', 'cf', 'casse', 'confezioni'].includes((it.unit_of_measure || '').toLowerCase()) && (
+                                <span style={{ color: '#34d399', marginLeft: '6px' }}>
+                                  ({it.pieces_per_package || 24} pz/ct → <strong>{(Number(it.quantity || 0) * Number(it.pieces_per_package || 24)).toFixed(0)} bottiglie totali</strong>)
+                                </span>
+                              )}
                             </div>
                           </div>
 

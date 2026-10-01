@@ -75,10 +75,24 @@ function formatExtractedInvoice(raw) {
           const qty = Number(it.quantity) || 1;
           const tot = Number(it.total_price) || 0;
           const uPrice = it.unit_price ? Number(it.unit_price) : qty > 0 ? tot / qty : 0;
+          
+          let pzPerPkg = Number(it.pieces_per_package || it.qxc || it.num_um) || 1;
+          
+          // Pulizia ulteriore del nome per rimuovere x24, x12, x15 alla fine
+          let cleanName = (it.item_name || 'Prodotto').trim();
+          const multMatch = cleanName.match(/\s*(?:x|X|\*)\s*(\d+)\s*(?:pz|PZ)?\s*$/i);
+          if (multMatch) {
+            if (pzPerPkg === 1) {
+              pzPerPkg = Number(multMatch[1]) || 1;
+            }
+            cleanName = cleanName.replace(/\s*(?:x|X|\*)\s*\d+\s*(?:pz|PZ)?\s*$/i, '').trim();
+          }
+
           return {
-            item_name: it.item_name || 'Prodotto',
+            item_name: cleanName,
             quantity: qty,
-            unit_of_measure: it.unit_of_measure || 'kg',
+            unit_of_measure: it.unit_of_measure || 'cartoni',
+            pieces_per_package: pzPerPkg,
             total_price: tot,
             unit_price: Number(uPrice.toFixed(2)),
           };

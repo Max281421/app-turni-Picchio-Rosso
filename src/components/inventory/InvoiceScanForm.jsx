@@ -546,8 +546,8 @@ export default function InvoiceScanForm({
                             </div>
                           </div>
 
-                          {/* Seconda Riga: Dettagli Quantità, Unità e Prezzi */}
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px', alignItems: 'center' }}>
+                          {/* Seconda Riga: Dettagli Quantità, Unità, Pezzi per Cartone e Prezzi */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '10px', alignItems: 'center' }}>
                             <div>
                               <label style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Quantità</label>
                               <input
@@ -568,13 +568,28 @@ export default function InvoiceScanForm({
                                 className="input-field"
                                 style={{ width: '100%' }}
                               >
+                                <option value="cartoni">cartoni (CT/CF)</option>
                                 <option value="kg">kg</option>
                                 <option value="litri">litri</option>
                                 <option value="buste">buste</option>
-                                <option value="cartoni">cartoni</option>
                                 <option value="pezzi">pezzi</option>
                               </select>
                             </div>
+
+                            {['cartoni', 'ct', 'cf', 'casse', 'confezioni'].includes((item.unit_of_measure || '').toLowerCase()) && (
+                              <div>
+                                <label style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: 600 }}>Pz / Cartone (qxc)</label>
+                                <input
+                                  type="number"
+                                  step="1"
+                                  min="1"
+                                  value={item.pieces_per_package || 24}
+                                  onChange={(e) => handleUpdateItem(idx, 'pieces_per_package', parseInt(e.target.value) || 1)}
+                                  className="input-field"
+                                  style={{ width: '100%', borderColor: 'rgba(56, 189, 248, 0.4)', color: '#38bdf8', fontWeight: 700 }}
+                                />
+                              </div>
+                            )}
 
                             <div>
                               <label style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Totale Voce (€)</label>
@@ -590,13 +605,39 @@ export default function InvoiceScanForm({
 
                             <div style={{ textAlign: 'right' }}>
                               <span style={{ fontSize: '0.72rem', color: '#38bdf8', display: 'block' }}>
-                                Prezzo Calcolato (€ / {item.unit_of_measure})
+                                Prezzo al Cartone
                               </span>
                               <span style={{ fontSize: '1rem', fontWeight: 800, color: '#38bdf8' }}>
                                 € {Number(item.unit_price || 0).toFixed(2)}
                               </span>
                             </div>
                           </div>
+
+                          {/* Badge Calcolo Bottiglie / Pezzi Totali se Unità è Cartoni */}
+                          {['cartoni', 'ct', 'cf', 'casse', 'confezioni'].includes((item.unit_of_measure || '').toLowerCase()) && (
+                            <div
+                              style={{
+                                fontSize: '0.78rem',
+                                color: '#34d399',
+                                background: 'rgba(16, 185, 129, 0.1)',
+                                border: '1px solid rgba(16, 185, 129, 0.25)',
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                flexWrap: 'wrap',
+                                gap: '6px',
+                              }}
+                            >
+                              <span>
+                                🍾 Conteggio Bottiglie/Pezzi: <strong>{(Number(item.quantity || 0) * Number(item.pieces_per_package || 24)).toFixed(0)} pz totali</strong> ({item.quantity} cartoni × {item.pieces_per_package || 24} pz)
+                              </span>
+                              <span>
+                                Costo singolo pezzo: <strong>€ {((Number(item.unit_price) || 0) / (Number(item.pieces_per_package) || 24)).toFixed(2)} / pz</strong>
+                              </span>
+                            </div>
+                          )}
                         </div>
                       );
                     })

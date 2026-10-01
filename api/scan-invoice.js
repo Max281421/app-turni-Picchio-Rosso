@@ -46,9 +46,10 @@ Estrai i dati esatti in formato JSON strutturato con questo schema:
   "payment_status": "da_pagare",
   "items": [
     {
-      "item_name": "Nome prodotto pulito",
+      "item_name": "Nome prodotto pulito (senza x24, x12, x15 alla fine)",
       "quantity": 0.00,
       "unit_of_measure": "cartoni", 
+      "pieces_per_package": 24,
       "total_price": 0.00,
       "unit_price": 0.00
     }
@@ -62,7 +63,9 @@ Regole fondamentali di estrazione per massima precisione:
    [Codice] [Descrizione del bene] [Num. um (pezzi per cassa/qxc)] [Quantità (numero casse/cartoni)] [Um (CT/CF)] [Prezzo (prezzo al cartone)] [Sconti] [Totale (importo riga)]
 
    REGOLE SULLE COLONNE:
-   - "quantity": DEVE ESSERE IL NUMERO DI CARTONI/CASSE CONSEGNATI riportato nella colonna "Quantità" (es. 5 per Coca Cola Sleek, 2 per Coca Cola Zero, 1 per Lipton Tea, 1 per Moretti, 1 per Peroni 1/3, 2 per Peroni 2/3, 1 per Corona, 2 per S.Ben Nat, 2 per S.Ben Gas). NON prendere il valore della colonna 'Num. um' o 'qxc' (es. 24 o 12 o 15) che rappresenta solo i pezzi contenuti in ciascun cartone!
+   - "pieces_per_package": DEVE ESSERE IL NUMERO DI PEZZI PER CARTONE/CASSA riportato nella colonna 'Num. um' o 'qxc' (es. 24, 12, 15, 6, 20). Se non specificato, imposta 1.
+   - "item_name": NOME PULITO DEL PRODOTTO. Rimuovi dal nome eventuali moltiplicatori di imballo alla fine come "X 24", "x24", "X 12", "x12", "x15", "x20" (es. "COCA COLA SLEEK LATT. 0.33 X 24" diventa "COCA COLA SLEEK LATT. 0.33", "S.BEN. 1/1 NAT TOWER ANNIA PET x12" diventa "S.BEN. 1/1 NAT TOWER ANNIA PET"). MANTIENI SEMPRE numeri di varianti come "1/3 VP", "2/3 VP", "0.33", "0.5"!
+   - "quantity": DEVE ESSERE IL NUMERO DI CARTONI/CASSE CONSEGNATI riportato nella colonna "Quantità" (es. 5 per Coca Cola Sleek, 2 per Coca Cola Zero, 1 per Lipton Tea, 1 per Moretti, 1 per Peroni 1/3, 2 per Peroni 2/3, 1 per Corona, 2 per S.Ben Nat, 2 per S.Ben Gas). NON prendere il valore della colonna 'Num. um' o 'qxc'!
    - "unit_of_measure": "cartoni" (se la colonna Um indica CT o CF) o "pezzi" o "kg" o "litri".
    - "unit_price": Prezzo unitario al cartone dalla colonna "Prezzo" (es. 14.87 per 1 cartone di Coca Cola).
    - "total_price": Prezzo totale della riga dalla colonna di destra "Totale" (es. 74.35 per 5 cartoni di Coca Cola = 5 * 14.87; 29.74 per 2 cartoni = 2 * 14.87).

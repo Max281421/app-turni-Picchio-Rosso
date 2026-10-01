@@ -145,6 +145,7 @@ export default function InventoryDashboard() {
   const [newItemName, setNewItemName] = useState('');
   const [newItemCategory, setNewItemCategory] = useState('Latticini');
   const [newItemUnit, setNewItemUnit] = useState('kg');
+  const [newItemPiecesPerPackage, setNewItemPiecesPerPackage] = useState('24');
   const [newItemStock, setNewItemStock] = useState('10');
   const [newItemMinStock, setNewItemMinStock] = useState('5');
 
@@ -157,6 +158,7 @@ export default function InventoryDashboard() {
       name: newItemName.trim(),
       category: newItemCategory,
       unit_of_measure: newItemUnit,
+      pieces_per_package: parseInt(newItemPiecesPerPackage) || 1,
       current_stock: parseFloat(newItemStock) || 0,
       min_stock_alert: parseFloat(newItemMinStock) || 0,
       last_unit_price: 0,
@@ -173,6 +175,7 @@ export default function InventoryDashboard() {
           name: newItem.name,
           category: newItem.category,
           unit_of_measure: newItem.unit_of_measure,
+          pieces_per_package: newItem.pieces_per_package,
           current_stock: newItem.current_stock,
           min_stock_alert: newItem.min_stock_alert,
         }]);
@@ -227,6 +230,7 @@ export default function InventoryDashboard() {
             ...updated[existingIdx],
             current_stock: Number((currentQty + addedQty).toFixed(2)),
             last_unit_price: Number(item.unit_price) || updated[existingIdx].last_unit_price,
+            pieces_per_package: Number(item.pieces_per_package) || updated[existingIdx].pieces_per_package || 1,
           };
         } else {
           // Se l'ingrediente è nuovo, lo crea con la categoria automatica corretta
@@ -245,7 +249,8 @@ export default function InventoryDashboard() {
             id: `item-${Date.now()}-${Math.random().toString().slice(2, 6)}`,
             name: finalName,
             category: cat,
-            unit_of_measure: item.unit_of_measure || 'kg',
+            unit_of_measure: item.unit_of_measure || 'cartoni',
+            pieces_per_package: Number(item.pieces_per_package) || (cat === 'Bevande' ? 24 : 1),
             current_stock: Number(Number(item.quantity || 0).toFixed(2)),
             min_stock_alert: 5.0,
             last_unit_price: Number(item.unit_price) || 0,
@@ -505,14 +510,30 @@ export default function InventoryDashboard() {
                     className="input-field"
                     style={{ width: '100%' }}
                   >
+                    <option value="cartoni">cartoni (CT/CF)</option>
                     <option value="kg">kg</option>
                     <option value="litri">litri</option>
                     <option value="buste">buste</option>
-                    <option value="cartoni">cartoni</option>
                     <option value="pezzi">pezzi</option>
                   </select>
                 </div>
               </div>
+
+              {['cartoni', 'ct', 'cf', 'casse', 'confezioni'].includes((newItemUnit || '').toLowerCase()) && (
+                <div>
+                  <label className="input-label" style={{ color: '#38bdf8' }}>Pezzi per Cartone / Cassa (qxc) *</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="1"
+                    required
+                    value={newItemPiecesPerPackage}
+                    onChange={(e) => setNewItemPiecesPerPackage(e.target.value)}
+                    className="input-field"
+                    style={{ width: '100%', borderColor: 'rgba(56, 189, 248, 0.4)', color: '#38bdf8', fontWeight: 700 }}
+                  />
+                </div>
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
