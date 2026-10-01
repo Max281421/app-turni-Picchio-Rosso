@@ -87,15 +87,16 @@ export default function InventoryDashboard() {
         }
       }
 
-      // 2. Invia gli ingredienti locali a Supabase se non ancora presenti nel cloud
-      const localItems = loadLocalStorage('APP_TURNI_INVENTORY_ITEMS', []);
+      // 2. Invia gli ingredienti locali a Supabase se non ancora presenti nel cloud (escludendo dati demo iniziali)
+      const isDemoItem = (n) => /mozzarella|fior di latte|farina|pelati|olio extra|prosciutto crudo/i.test(n || '');
+      const localItems = loadLocalStorage('APP_TURNI_INVENTORY_ITEMS', []).filter((i) => !isDemoItem(i.name));
       const { data: remoteItems, error: rItemsErr } = await supabase.from('inventory_items').select('name');
       
       if (!rItemsErr) {
         const remoteNames = new Set((remoteItems || []).map((r) => (r.name || '').toLowerCase()));
 
         for (const item of localItems) {
-          if (!remoteNames.has((item.name || '').toLowerCase())) {
+          if (!remoteNames.has((item.name || '').toLowerCase()) && !isDemoItem(item.name)) {
             await supabase.from('inventory_items').insert([{
               name: item.name,
               category: item.category,
@@ -109,10 +110,11 @@ export default function InventoryDashboard() {
         }
       }
 
-      // 3. Scarica i dati aggiornati dal Cloud
+      // 3. Scarica i dati aggiornati dal Cloud e sovrascrivi la cache locale pulita
       const { data: itemsData } = await supabase.from('inventory_items').select('*').order('name');
       if (itemsData && itemsData.length > 0) {
         setInventoryItems(itemsData);
+        saveLocalStorage('APP_TURNI_INVENTORY_ITEMS', itemsData);
       }
 
       const { data: invData } = await supabase.from('invoices').select('*, items:invoice_items(*)').order('created_at', { ascending: false });
@@ -136,6 +138,7 @@ export default function InventoryDashboard() {
           })),
         }));
         setInvoices(formattedInvoices);
+        saveLocalStorage('APP_TURNI_INVOICES', formattedInvoices);
       }
 
       const { data: supData } = await supabase.from('suppliers').select('*').order('name');
