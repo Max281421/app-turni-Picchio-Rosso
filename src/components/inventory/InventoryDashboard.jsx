@@ -7,18 +7,46 @@ import SupplierModal from './SupplierModal';
 import PriceHistoryModal from './PriceHistoryModal';
 import { Package, Sparkles, FileText, Truck, Plus } from 'lucide-react';
 
+function loadLocalStorage(key, fallback = []) {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+function saveLocalStorage(key, data) {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {}
+}
+
 export default function InventoryDashboard() {
   const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' | 'scan' | 'archive'
   const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [showNewItemModal, setShowNewItemModal] = useState(false);
   const [selectedPriceHistoryItem, setSelectedPriceHistoryItem] = useState(null);
 
-  // State Dati (Vergine / Vuoto per avvio pulito)
-  const [inventoryItems, setInventoryItems] = useState([]);
-  const [invoices, setInvoices] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
+  // State Dati con persistenza locale (localStorage) per evitare perdite dopo reload/deployment
+  const [inventoryItems, setInventoryItems] = useState(() => loadLocalStorage('APP_TURNI_INVENTORY_ITEMS', []));
+  const [invoices, setInvoices] = useState(() => loadLocalStorage('APP_TURNI_INVOICES', []));
+  const [suppliers, setSuppliers] = useState(() => loadLocalStorage('APP_TURNI_SUPPLIERS', []));
 
-  // Caricamento dati da Supabase
+  // Salvataggio automatico in localStorage ad ogni modifica
+  useEffect(() => {
+    saveLocalStorage('APP_TURNI_INVENTORY_ITEMS', inventoryItems);
+  }, [inventoryItems]);
+
+  useEffect(() => {
+    saveLocalStorage('APP_TURNI_INVOICES', invoices);
+  }, [invoices]);
+
+  useEffect(() => {
+    saveLocalStorage('APP_TURNI_SUPPLIERS', suppliers);
+  }, [suppliers]);
+
+  // Caricamento dati remoti da Supabase (se configurato)
   useEffect(() => {
     fetchData();
   }, []);
@@ -46,7 +74,7 @@ export default function InventoryDashboard() {
         setSuppliers(supData);
       }
     } catch (err) {
-      console.log('Utilizzo dati iniziali di fallback magazzino:', err);
+      console.log('Utilizzo dati locali di magazzino:', err);
     }
   };
 
