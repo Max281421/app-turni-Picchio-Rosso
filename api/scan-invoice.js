@@ -34,12 +34,12 @@ export default async function handler(req, res) {
     }
 
     const promptText = `
-Analizza questa foto di un documento di trasporto (DDT) / fattura per ristorante/pizzeria.
-Estrai i dati esatti in formato JSON strutturato con questa schema:
+Analizza questa foto di un documento di trasporto (DDT) / fattura del fornitore (es. Stefani Group Srl, MARR, DAC, Metro).
+Estrai i dati esatti in formato JSON strutturato con questo schema:
 
 {
-  "supplier_name": "Nome fornitore (es. STEFANI GROUP SRL)",
-  "invoice_number": "Numero bolla o fattura esatto (es. 01-B 057379)",
+  "supplier_name": "Nome della ditta/fornitore",
+  "invoice_number": "Numero fattura o DDT",
   "invoice_date": "YYYY-MM-DD",
   "due_date": "YYYY-MM-DD",
   "total_amount": 0.00,
@@ -57,26 +57,27 @@ Estrai i dati esatti in formato JSON strutturato con questa schema:
 
 Regole fondamentali di estrazione per massima precisione:
 
-1. INTETESTAZIONE E NUMERO DOCUMENTO:
-   - "invoice_number": Cerca il numero documento di consegna/bolla esatto (es. "01-B 057379" o "FT-2026/1044").
-   - "supplier_name": Ragione sociale del fornitore (es. "STEFANI GROUP SRL").
-   - "total_amount": Importo totale finale del documento comprensivo di IVA espresso in calce (es. 273.87).
+1. GUIDA COLONNE TABELLA DISTRIBUTORI (es. Stefani Group, DAC, MARR):
+   Nelle tabelle dei distributori alimentari e bevande in Italia, le colonne sono disposte nell'ordine:
+   [Codice] [Descrizione del bene] [Num. um (pezzi per cassa/qxc)] [Quantità (numero casse/cartoni)] [Um (CT/CF)] [Prezzo (prezzo al cartone)] [Sconti] [Totale (importo riga)]
 
-2. ESTROLAZIONE TABELLA PRODOTTI:
-   - Estrai TUTTI i prodotti/bevande/ingredienti consegnati nella tabella principale dei beni.
-   - NOMI PULITI E ACCURATI: Leggi fedelmente le descrizioni senza storpiare le parole (es. "LIPTON I.TEA PESCA 1/2 PET", "COCA COLA SLEEK LATT. 0.33", "MORETTI 1/3 VP", "PERONI 1/3 VP", "CORONA 1/3 VP", "S.BEN. 1/1 NAT TOWER PET x12").
-   - QUANTITÀ E UNITÀ:
-     * Nella colonna Quantità/UM, se sono indicati cartoni/casse (es. "5 CT" o "2 CT" o "1 CT"), imposta quantity col numero di cartoni (es. 5) e unit_of_measure = "cartoni" (oppure "pezzi" moltiplicando per i pezzi per cassa "qxc").
-   - PREZZO UNITARIO E TOTALE RIGA:
-     * "unit_price": Prezzo unitario al cartone/confezione dalla colonna "Prezzo" (es. 14.87 per 1 cartone di Coca Cola).
-     * "total_price": Prezzo totale dell'intera riga dalla colonna di destra "Totale" (es. 74.35 per 5 cartoni di Coca Cola = 5 * 14.87). NON scambiare mai il prezzo unitario con il totale riga!
+   REGOLE SULLE COLONNE:
+   - "quantity": DEVE ESSERE IL NUMERO DI CARTONI/CASSE CONSEGNATI riportato nella colonna "Quantità" (es. 5 per Coca Cola Sleek, 2 per Coca Cola Zero, 1 per Lipton Tea, 1 per Moretti, 1 per Peroni 1/3, 2 per Peroni 2/3, 1 per Corona, 2 per S.Ben Nat, 2 per S.Ben Gas). NON prendere il valore della colonna 'Num. um' o 'qxc' (es. 24 o 12 o 15) che rappresenta solo i pezzi contenuti in ciascun cartone!
+   - "unit_of_measure": "cartoni" (se la colonna Um indica CT o CF) o "pezzi" o "kg" o "litri".
+   - "unit_price": Prezzo unitario al cartone dalla colonna "Prezzo" (es. 14.87 per 1 cartone di Coca Cola).
+   - "total_price": Prezzo totale della riga dalla colonna di destra "Totale" (es. 74.35 per 5 cartoni di Coca Cola = 5 * 14.87; 29.74 per 2 cartoni = 2 * 14.87).
    - VERIFICA MATEMATICA: Assicurati sempre che total_price sia uguale a (quantity * unit_price).
 
+2. PRODOTTI SIMILI COME RIGHE SEPARATE (NESSUNA FUSIONE):
+   - Prodotti con nomi o varianti simili (es. "PERONI 1/3 VP BIRRA PERONI SRL" e "PERONI 2/3 VP BIRRA PERONI SRL") sono DUE PRODOTTI DIVERSI e DEVONO essere due elementi separati nell'array "items". NON UNIRLI O ELIMINARLI MAI!
+
 3. RIGOROSA ESCLUSIONE SEZIONI NON-PRODOTTO / IMBALLI:
-   - ESCLUDI sistematicamente qualsiasi tabella o riga in basso intitolata "A DEBITO", "CAUZIONI", "PALLETS EPAL", "BOMBOLE", "RESI IMBALLI" o "VUOTI A RENDERE".
+   - ESCLUDI completamente qualsiasi tabella o riga in basso intitolata "A DEBITO", "CAUZIONI", "PALLETS EPAL", "BOMBOLE", "RESI IMBALLI" o "VUOTI A RENDERE".
    - Quelli non sono ingredienti o bevande ma cauzioni/depositi di imballo a rendere che NON vanno caricati in magazzino.
 
-4. Restituisci SOLO il JSON valido senza marcatori markdown o altro testo.
+4. "total_amount": Importo totale finale espresso in calce alla voce Totale documento (es. 273.87).
+
+Restituisci SOLO il JSON valido senza marcatori markdown o altro testo.
 `;
 
     // 1. TENTATIVO CON OPENROUTER (Se configurato)

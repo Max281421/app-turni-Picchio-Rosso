@@ -12,14 +12,13 @@ function findBestMatchingInventoryItem(rawName, existingItems) {
   const clean = (str) =>
     (str || '')
       .toLowerCase()
-      .replace(/[\d.,]+(kg|litri|litro|pz|pezzi|cl|l|g|ml)?/gi, '')
       .replace(/\b(dop|igp|sacchi|fresco|freschi|busta|cartone|d'agerola|napoletani|pugliese|rossi|datterini|san marzano)\b/gi, '')
-      .replace(/[^a-z\s]/gi, ' ')
+      .replace(/[^a-z0-9\/\s]/gi, ' ')
       .replace(/\s+/g, ' ')
       .trim();
 
   const targetClean = clean(rawName);
-  const targetWords = targetClean.split(' ').filter((w) => w.length > 2);
+  const targetWords = targetClean.split(' ').filter((w) => w.length >= 1);
 
   let bestMatch = null;
   let bestScore = 0;
