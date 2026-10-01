@@ -82,42 +82,58 @@ Restituisci SOLO il JSON valido senza marcatori markdown o altro testo.
 
     // 1. TENTATIVO CON OPENROUTER (Se configurato)
     if (openrouterKey) {
-      const openRouterResp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openrouterKey}`,
-          'HTTP-Referer': 'https://app-turni-psi.vercel.app',
-          'X-Title': 'App Turni Pizzeria',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'openai/gpt-4o-mini',
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: promptText },
+      // Modelli vision in ordine di preferenza per la massima accuratezza
+      const modelsToTry = [
+        'google/gemini-2.5-flash-image',
+        'openai/gpt-4o-mini',
+        'openai/gpt-4o'
+      ];
+
+      for (const modelName of modelsToTry) {
+        try {
+          const openRouterResp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${openrouterKey}`,
+              'HTTP-Referer': 'https://app-turni-psi.vercel.app',
+              'X-Title': 'App Turni Pizzeria',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: modelName,
+              max_tokens: 1500,
+              messages: [
                 {
-                  type: 'image_url',
-                  image_url: {
-                    url: `data:${mimeType || 'image/jpeg'};base64,${imageBase64}`,
-                  },
+                  role: 'user',
+                  content: [
+                    { type: 'text', text: promptText },
+                    {
+                      type: 'image_url',
+                      image_url: {
+                        url: `data:${mimeType || 'image/jpeg'};base64,${imageBase64}`,
+                      },
+                    },
+                  ],
                 },
               ],
-            },
-          ],
-        }),
-      });
+            }),
+          });
 
-      if (openRouterResp.ok) {
-        const data = await openRouterResp.json();
-        const content = data.choices?.[0]?.message?.content || '';
-        const cleanJson = content.replace(/```json/g, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(cleanJson);
-        return res.status(200).json(parsed);
-      } else {
-        const errText = await openRouterResp.text();
-        console.error('Errore OpenRouter API:', errText);
+          if (openRouterResp.ok) {
+            const data = await openRouterResp.json();
+            const content = data.choices?.[0]?.message?.content || '';
+            const cleanJson = content.replace(/```json/g, '').replace(/```/g, '').trim();
+            const parsed = JSON.parse(cleanJson);
+            if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+              return res.status(200).json(parsed);
+            }
+          } else {
+            const errText = await openRouterResp.text();
+            console.error(`Errore OpenRouter (${modelName}):`, errText);
+          }
+        } catch (err) {
+          console.error(`Eccezione OpenRouter (${modelName}):`, err.message);
+        }
       }
     }
 
