@@ -10,7 +10,7 @@ related_notes:
   - "[[ISTRUZIONI_DIPENDENTI]]"
   - "[[SUPABASE_SETUP]]"
   - "[[prompt-antigravity-app-turni]]"
-last_updated: 2026-10-01
+last_updated: 2026-10-06
 ---
 
 # 🗺️ ROADMAP E BACKLOG PROGETTO - APP TURNI
@@ -77,6 +77,7 @@ In questo documento sono tracciate le prossime funzionalità concordate, le pers
 | **Gestione Pezzi per Cartone (qxc) e Conteggio Bottiglie** | Magazzino / AI | ✅ Completato | Campo `qxc`, calcolo bottiglie totali, rimozione suffissi `x24` dal nome e badge visivi |
 | **Persistenza LocalStorage & Sincronizzazione Cloud Supabase** | Magazzino / Cloud | ✅ Completato | Sincronizzazione automatica due vie PC/Smartphone e fix permessi RLS (error 42501) |
 | **Fix Critico Auth e Isolamento Profilo Admin** | Sicurezza | ✅ Completato | Risolto bug cancellazione admin durante rimozione dipendenti con helper `checkIsSelf` |
+| **Gestione Sconti Articoli Fattura & Giacenze (AI Scan & Edit)** | Magazzino / AI | ✅ Completato | Riconoscimento AI sconti riga %, form editabile, ricalcolo prezzo netto unitario, badge visivi e storico prezzi |
 | **Ferie / Indisponibilità Pizzeria** | Pizzeria | 🟡 Programmato | Da definire con regole specifiche pizzeria |
 | **Sistema di Notifiche** | Feature | ⚪ In Valutazione | Fattibile (In-App / Push / Email) |
 

@@ -79,6 +79,7 @@ export default function InventoryDashboard() {
                 unit_of_measure: it.unit_of_measure || 'cartoni',
                 pieces_per_package: it.pieces_per_package || 1,
                 unit_price: it.unit_price,
+                discount_percent: it.discount_percent || 0,
                 total_price: it.total_price,
               }));
               await supabase.from('invoice_items').insert(itemRows);
@@ -105,6 +106,7 @@ export default function InventoryDashboard() {
               current_stock: item.current_stock,
               min_stock_alert: item.min_stock_alert,
               last_unit_price: item.last_unit_price,
+              last_discount_percent: item.last_discount_percent || 0,
             }]);
           }
         }
@@ -134,6 +136,7 @@ export default function InventoryDashboard() {
             unit_of_measure: it.unit_of_measure || 'cartoni',
             pieces_per_package: it.pieces_per_package || 1,
             unit_price: it.unit_price,
+            discount_percent: it.discount_percent || 0,
             total_price: it.total_price,
           })),
         }));
@@ -183,9 +186,11 @@ export default function InventoryDashboard() {
           name: updatedItem.name,
           category: updatedItem.category,
           unit_of_measure: updatedItem.unit_of_measure,
+          pieces_per_package: updatedItem.pieces_per_package,
           current_stock: updatedItem.current_stock,
           min_stock_alert: updatedItem.min_stock_alert,
           last_unit_price: updatedItem.last_unit_price,
+          last_discount_percent: updatedItem.last_discount_percent || 0,
         }).eq('id', updatedItem.id);
       }
     } catch (err) {
@@ -266,6 +271,7 @@ export default function InventoryDashboard() {
       current_stock: parseFloat(newItemStock) || 0,
       min_stock_alert: parseFloat(newItemMinStock) || 0,
       last_unit_price: 0,
+      last_discount_percent: 0,
     };
 
     setInventoryItems((prev) => [...prev, newItem]);
@@ -326,14 +332,23 @@ export default function InventoryDashboard() {
           );
         }
 
+        // Calcolo del prezzo unitario netto reale al netto di sconti
+        const qty = Number(item.quantity) || 0;
+        const disc = Number(item.discount_percent) || 0;
+        const grossUPrice = Number(item.unit_price) || 0;
+        const netUPrice = disc > 0
+          ? Number((grossUPrice * (1 - disc / 100)).toFixed(2))
+          : (grossUPrice || (qty > 0 ? Number((Number(item.total_price) / qty).toFixed(2)) : 0));
+
         if (existingIdx >= 0) {
-          // Incrementa quantità e aggiorna ultimo prezzo unitario
+          // Incrementa quantità e aggiorna ultimo prezzo netto unitario
           const currentQty = Number(updated[existingIdx].current_stock) || 0;
           const addedQty = Number(item.quantity) || 0;
           updated[existingIdx] = {
             ...updated[existingIdx],
             current_stock: Number((currentQty + addedQty).toFixed(2)),
-            last_unit_price: Number(item.unit_price) || updated[existingIdx].last_unit_price,
+            last_unit_price: netUPrice || updated[existingIdx].last_unit_price,
+            last_discount_percent: disc,
             pieces_per_package: Number(item.pieces_per_package) || updated[existingIdx].pieces_per_package || 1,
           };
         } else {
@@ -357,7 +372,8 @@ export default function InventoryDashboard() {
             pieces_per_package: Number(item.pieces_per_package) || (cat === 'Bevande' ? 24 : 1),
             current_stock: Number(Number(item.quantity || 0).toFixed(2)),
             min_stock_alert: 5.0,
-            last_unit_price: Number(item.unit_price) || 0,
+            last_unit_price: netUPrice,
+            last_discount_percent: disc,
           });
         }
       });
@@ -388,6 +404,7 @@ export default function InventoryDashboard() {
             unit_of_measure: it.unit_of_measure || 'cartoni',
             pieces_per_package: it.pieces_per_package || 1,
             unit_price: it.unit_price,
+            discount_percent: it.discount_percent || 0,
             total_price: it.total_price,
           }));
           await supabase.from('invoice_items').insert(itemRows);

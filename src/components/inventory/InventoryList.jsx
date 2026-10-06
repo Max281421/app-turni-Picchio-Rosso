@@ -22,6 +22,7 @@ export default function InventoryList({
   const [editStock, setEditStock] = useState('0');
   const [editMinStock, setEditMinStock] = useState('5');
   const [editPrice, setEditPrice] = useState('0');
+  const [editDiscountPercent, setEditDiscountPercent] = useState('0');
 
   const categories = ['Tutti', ...new Set(items.map((i) => i.category || 'Generale'))];
 
@@ -44,11 +45,16 @@ export default function InventoryList({
     setEditStock(item.current_stock?.toString() || '0');
     setEditMinStock(item.min_stock_alert?.toString() || '5');
     setEditPrice(item.last_unit_price?.toString() || '0');
+    setEditDiscountPercent(item.last_discount_percent?.toString() || '0');
   };
 
   const handleSaveEdit = (e) => {
     e.preventDefault();
     if (!editingItem || !editName.trim()) return;
+
+    const baseP = parseFloat(editPrice) || 0;
+    const disc = parseFloat(editDiscountPercent) || 0;
+    const netP = disc > 0 ? Number((baseP * (1 - disc / 100)).toFixed(2)) : baseP;
 
     const updated = {
       ...editingItem,
@@ -58,7 +64,8 @@ export default function InventoryList({
       pieces_per_package: parseInt(editPiecesPerPackage) || 1,
       current_stock: parseFloat(editStock) || 0,
       min_stock_alert: parseFloat(editMinStock) || 0,
-      last_unit_price: parseFloat(editPrice) || 0,
+      last_unit_price: netP,
+      last_discount_percent: disc,
     };
 
     onEditItem(updated);
@@ -235,6 +242,11 @@ export default function InventoryList({
                   <div style={{ display: 'flex', gap: '14px', marginTop: '6px', fontSize: '0.8rem', color: '#94a3b8', flexWrap: 'wrap' }}>
                     <span>
                       Ultimo prezzo: <strong style={{ color: '#38bdf8' }}>€ {Number(item.last_unit_price || 0).toFixed(2)} /{item.unit_of_measure}</strong>
+                      {Number(item.last_discount_percent) > 0 && (
+                        <span style={{ marginLeft: '6px', color: '#fbbf24', fontWeight: 700, background: 'rgba(245, 158, 11, 0.15)', padding: '1px 6px', borderRadius: '6px', fontSize: '0.72rem' }}>
+                          🏷️ -{item.last_discount_percent}% sconto
+                        </span>
+                      )}
                     </span>
                     {['cartoni', 'ct', 'cf', 'casse', 'confezioni'].includes((item.unit_of_measure || '').toLowerCase()) && (
                       <span style={{ color: '#34d399', fontWeight: 600 }}>
@@ -400,7 +412,7 @@ export default function InventoryList({
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
                   <label className="input-label">Giacenza ({editUnit})</label>
                   <input
@@ -426,9 +438,11 @@ export default function InventoryList({
                     style={{ width: '100%' }}
                   />
                 </div>
+              </div>
 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label className="input-label">€ / {editUnit}</label>
+                  <label className="input-label">€ Lordo / {editUnit}</label>
                   <input
                     type="number"
                     step="0.01"
@@ -438,7 +452,28 @@ export default function InventoryList({
                     style={{ width: '100%' }}
                   />
                 </div>
+
+                <div>
+                  <label className="input-label" style={{ color: '#fbbf24' }}>Sconto (%)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    placeholder="0%"
+                    value={editDiscountPercent}
+                    onChange={(e) => setEditDiscountPercent(e.target.value)}
+                    className="input-field"
+                    style={{ width: '100%', borderColor: 'rgba(245, 158, 11, 0.4)', color: '#fbbf24', fontWeight: 700 }}
+                  />
+                </div>
               </div>
+
+              {Number(editDiscountPercent) > 0 && (
+                <div style={{ fontSize: '0.8rem', color: '#34d399', background: 'rgba(16, 185, 129, 0.1)', padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                  🏷️ Prezzo Netto Resultante: <strong>€ {(parseFloat(editPrice || 0) * (1 - parseFloat(editDiscountPercent || 0) / 100)).toFixed(2)} /{editUnit}</strong>
+                </div>
+              )}
 
               <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
                 <button

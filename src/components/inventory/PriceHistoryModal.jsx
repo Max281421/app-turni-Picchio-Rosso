@@ -18,7 +18,9 @@ export default function PriceHistoryModal({ item, invoices, onClose }) {
       if (matchesName || matchesId) {
         const qty = Number(it.quantity) || 0;
         const tot = Number(it.total_price) || 0;
-        const unitP = it.unit_price ? Number(it.unit_price) : qty > 0 ? tot / qty : 0;
+        const disc = Number(it.discount_percent) || 0;
+        const grossP = Number(it.unit_price) || 0;
+        const netP = disc > 0 ? grossP * (1 - disc / 100) : (grossP || (qty > 0 ? tot / qty : 0));
 
         historyRecords.push({
           invoice_id: inv.id,
@@ -28,7 +30,9 @@ export default function PriceHistoryModal({ item, invoices, onClose }) {
           quantity: qty,
           unit_of_measure: it.unit_of_measure || item.unit_of_measure || 'kg',
           total_price: tot,
-          unit_price: Number(unitP.toFixed(2)),
+          gross_unit_price: Number(grossP.toFixed(2)),
+          discount_percent: disc,
+          unit_price: Number(netP.toFixed(2)),
           timestamp: new Date(inv.invoice_date).getTime() || 0,
         });
       }
@@ -318,8 +322,13 @@ export default function PriceHistoryModal({ item, invoices, onClose }) {
                       }}
                     >
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#f8fafc' }}>
-                          {rec.supplier_name}
+                        <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>{rec.supplier_name}</span>
+                          {rec.discount_percent > 0 && (
+                            <span style={{ fontSize: '0.7rem', color: '#fbbf24', background: 'rgba(245, 158, 11, 0.15)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.3)', fontWeight: 700 }}>
+                              🏷️ -{rec.discount_percent}% Sconto
+                            </span>
+                          )}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
                           Data: {rec.invoice_date} • Fattura: {rec.invoice_number} • Qty: {rec.quantity} {rec.unit_of_measure}
@@ -332,7 +341,7 @@ export default function PriceHistoryModal({ item, invoices, onClose }) {
                             € {rec.unit_price.toFixed(2)} <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>/{rec.unit_of_measure}</span>
                           </div>
                           <div style={{ fontSize: '0.7rem', color: '#cbd5e1' }}>
-                            Tot: € {rec.total_price.toFixed(2)}
+                            {rec.discount_percent > 0 ? `Lordo € ${rec.gross_unit_price.toFixed(2)} • ` : ''}Tot: € {rec.total_price.toFixed(2)}
                           </div>
                         </div>
 

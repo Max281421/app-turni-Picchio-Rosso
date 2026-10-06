@@ -73,8 +73,14 @@ function formatExtractedInvoice(raw) {
     items: Array.isArray(raw.items)
       ? raw.items.map((it) => {
           const qty = Number(it.quantity) || 1;
+          const discountPct = Number(it.discount_percent || it.discount || it.sconto) || 0;
           const tot = Number(it.total_price) || 0;
-          const uPrice = it.unit_price ? Number(it.unit_price) : qty > 0 ? tot / qty : 0;
+          let uPrice = Number(it.unit_price) || 0;
+
+          if (!uPrice && qty > 0) {
+            const netUPrice = tot / qty;
+            uPrice = discountPct > 0 ? netUPrice / (1 - discountPct / 100) : netUPrice;
+          }
           
           let pzPerPkg = Number(it.pieces_per_package || it.qxc || it.num_um) || 1;
           
@@ -93,8 +99,9 @@ function formatExtractedInvoice(raw) {
             quantity: qty,
             unit_of_measure: it.unit_of_measure || 'cartoni',
             pieces_per_package: pzPerPkg,
-            total_price: tot,
             unit_price: Number(uPrice.toFixed(2)),
+            discount_percent: Number(discountPct.toFixed(2)),
+            total_price: Number(tot.toFixed(2)),
           };
         })
       : [],

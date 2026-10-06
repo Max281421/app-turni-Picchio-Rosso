@@ -199,13 +199,15 @@ CREATE TABLE IF NOT EXISTS public.inventory_items (
   current_stock NUMERIC(10, 2) DEFAULT 0.00,
   min_stock_alert NUMERIC(10, 2) DEFAULT 5.00,
   last_unit_price NUMERIC(10, 2) DEFAULT 0.00,
+  last_discount_percent NUMERIC(5, 2) DEFAULT 0.00,
   pieces_per_package INT DEFAULT 1,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Assicura che la colonna pieces_per_package esista anche su tabelle preesistenti
+-- Assicura che le colonne esistano anche su tabelle preesistenti
 ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS pieces_per_package INT DEFAULT 1;
+ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS last_discount_percent NUMERIC(5, 2) DEFAULT 0.00;
 
 CREATE TABLE IF NOT EXISTS public.invoices (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -232,11 +234,13 @@ CREATE TABLE IF NOT EXISTS public.invoice_items (
   pieces_per_package INT DEFAULT 1,
   total_price NUMERIC(10, 2) DEFAULT 0.00,
   unit_price NUMERIC(10, 2) DEFAULT 0.00,
+  discount_percent NUMERIC(5, 2) DEFAULT 0.00,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Assicura che la colonna pieces_per_package esista anche su tabelle preesistenti
+-- Assicura che le colonne esistano anche su tabelle preesistenti
 ALTER TABLE public.invoice_items ADD COLUMN IF NOT EXISTS pieces_per_package INT DEFAULT 1;
+ALTER TABLE public.invoice_items ADD COLUMN IF NOT EXISTS discount_percent NUMERIC(5, 2) DEFAULT 0.00;
 
 CREATE TABLE IF NOT EXISTS public.inventory_movements (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

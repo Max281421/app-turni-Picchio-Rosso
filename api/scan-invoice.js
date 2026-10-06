@@ -50,8 +50,9 @@ Estrai i dati esatti in formato JSON strutturato con questo schema:
       "quantity": 0.00,
       "unit_of_measure": "cartoni", 
       "pieces_per_package": 24,
-      "total_price": 0.00,
-      "unit_price": 0.00
+      "unit_price": 0.00,
+      "discount_percent": 0.00,
+      "total_price": 0.00
     }
   ]
 }
@@ -67,9 +68,10 @@ Regole fondamentali di estrazione per massima precisione:
    - "item_name": NOME PULITO DEL PRODOTTO. Rimuovi dal nome eventuali moltiplicatori di imballo alla fine come "X 24", "x24", "X 12", "x12", "x15", "x20" (es. "COCA COLA SLEEK LATT. 0.33 X 24" diventa "COCA COLA SLEEK LATT. 0.33", "S.BEN. 1/1 NAT TOWER ANNIA PET x12" diventa "S.BEN. 1/1 NAT TOWER ANNIA PET"). MANTIENI SEMPRE numeri di varianti come "1/3 VP", "2/3 VP", "0.33", "0.5"!
    - "quantity": DEVE ESSERE IL NUMERO DI CARTONI/CASSE CONSEGNATI riportato nella colonna "Quantità" (es. 5 per Coca Cola Sleek, 2 per Coca Cola Zero, 1 per Lipton Tea, 1 per Moretti, 1 per Peroni 1/3, 2 per Peroni 2/3, 1 per Corona, 2 per S.Ben Nat, 2 per S.Ben Gas). NON prendere il valore della colonna 'Num. um' o 'qxc'!
    - "unit_of_measure": "cartoni" (se la colonna Um indica CT o CF) o "pezzi" o "kg" o "litri".
-   - "unit_price": Prezzo unitario al cartone dalla colonna "Prezzo" (es. 14.87 per 1 cartone di Coca Cola).
-   - "total_price": Prezzo totale della riga dalla colonna di destra "Totale" (es. 74.35 per 5 cartoni di Coca Cola = 5 * 14.87; 29.74 per 2 cartoni = 2 * 14.87).
-   - VERIFICA MATEMATICA: Assicurati sempre che total_price sia uguale a (quantity * unit_price).
+   - "unit_price": Prezzo unitario lordo/di listino al cartone dalla colonna "Prezzo" (es. 14.87 per 1 cartone di Coca Cola).
+   - "discount_percent": Percentuale di sconto applicata alla riga presente nella colonna "Sconti" o "Sc. %" o "Sc." (es. 10.0 per 10%, 15.0 per 15%, 5.0 per 5%). Se non c'è sconto o la colonna è vuota, imposta 0.00. Se ci sono più sconti tipo "10+5", calcola la percentuale reale combinata.
+   - "total_price": Prezzo totale netto della riga dalla colonna "Totale" a destra (importo effettivo da pagare al netto dello sconto).
+   - VERIFICA MATEMATICA: Assicurati che total_price sia uguale a quantity * unit_price * (1 - discount_percent / 100).
 
 2. PRODOTTI SIMILI COME RIGHE SEPARATE (NESSUNA FUSIONE):
    - Prodotti con nomi o varianti simili (es. "PERONI 1/3 VP BIRRA PERONI SRL" e "PERONI 2/3 VP BIRRA PERONI SRL") sono DUE PRODOTTI DIVERSI e DEVONO essere due elementi separati nell'array "items". NON UNIRLI O ELIMINARLI MAI!

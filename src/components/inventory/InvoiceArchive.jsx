@@ -283,43 +283,62 @@ export default function InvoiceArchive({
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {inv.items.map((it, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            background: 'rgba(255, 255, 255, 0.04)',
-                            border: '1px solid rgba(255, 255, 255, 0.06)',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <div>
-                            <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#f8fafc' }}>
-                              {it.item_name}
-                            </div>
-                            <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                              Prezzo al cartone/unità: <strong style={{ color: '#38bdf8' }}>€ {Number(it.unit_price || 0).toFixed(2)} /{it.unit_of_measure}</strong>
-                              {['cartoni', 'ct', 'cf', 'casse', 'confezioni'].includes((it.unit_of_measure || '').toLowerCase()) && (
-                                <span style={{ color: '#34d399', marginLeft: '6px' }}>
-                                  ({it.pieces_per_package || 24} pz/ct → <strong>{(Number(it.quantity || 0) * Number(it.pieces_per_package || 24)).toFixed(0)} bottiglie totali</strong>)
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                      {inv.items.map((it, idx) => {
+                        const disc = Number(it.discount_percent) || 0;
+                        const grossUPrice = Number(it.unit_price) || 0;
+                        const netUPrice = disc > 0 ? grossUPrice * (1 - disc / 100) : grossUPrice;
 
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#34d399' }}>
-                              {it.quantity} {it.unit_of_measure}
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              background: 'rgba(255, 255, 255, 0.04)',
+                              border: '1px solid rgba(255, 255, 255, 0.06)',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span>{it.item_name}</span>
+                                {disc > 0 && (
+                                  <span style={{ fontSize: '0.7rem', color: '#fbbf24', background: 'rgba(245, 158, 11, 0.15)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.3)', fontWeight: 700 }}>
+                                    🏷️ -{disc}% Sconto
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                                {disc > 0 ? (
+                                  <>
+                                    Listino: € {grossUPrice.toFixed(2)} → <strong style={{ color: '#38bdf8' }}>Netto: € {netUPrice.toFixed(2)} /{it.unit_of_measure}</strong>
+                                  </>
+                                ) : (
+                                  <>
+                                    Prezzo unitario: <strong style={{ color: '#38bdf8' }}>€ {netUPrice.toFixed(2)} /{it.unit_of_measure}</strong>
+                                  </>
+                                )}
+                                {['cartoni', 'ct', 'cf', 'casse', 'confezioni'].includes((it.unit_of_measure || '').toLowerCase()) && (
+                                  <span style={{ color: '#34d399', marginLeft: '6px' }}>
+                                    ({it.pieces_per_package || 24} pz/ct → <strong>{(Number(it.quantity || 0) * Number(it.pieces_per_package || 24)).toFixed(0)} bottiglie totali</strong>)
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>
-                              Totale voce: € {Number(it.total_price || 0).toFixed(2)}
+
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#34d399' }}>
+                                {it.quantity} {it.unit_of_measure}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>
+                                Totale netto: € {Number(it.total_price || 0).toFixed(2)}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}

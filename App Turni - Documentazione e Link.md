@@ -11,7 +11,7 @@ related_notes:
   - "[[ISTRUZIONI_DIPENDENTI]]"
   - "[[SUPABASE_SETUP]]"
   - "[[prompt-antigravity-app-turni]]"
-last_updated: 2026-10-01
+last_updated: 2026-10-06
 ---
 
 # App Turni Ristorante & Catering 🍽️
@@ -185,6 +185,13 @@ Per aggiornare l'applicazione online dopo una modifica al codice:
 ### 🔒 26. Fix Critico Sicurezza Auth (`deleteAccount` e `updateEmployeeRole`)
 - **Isolamento Profilo Admin**: Risolto il bug in `AuthContext.jsx` dove l'eliminazione o il cambio di ruolo di un altro dipendente tramite query Supabase `.or('id.eq.TARGET,auth_user_id.eq.ADMIN')` provocava accidentalmente la cancellazione/alterazione del profilo dell'admin esecutore ed il conseguente logout forzato.
 - **Helper `checkIsSelf`**: Aggiunta la funzione helper `checkIsSelf(targetId)` per verificare prima di ogni mutazione se l'operazione riguarda il profilo dell'utente correntemente autenticato, garantendo il totale isolamento dei ruoli e la protezione degli account Admin.
+
+### 🏷️ 27. Gestione Sconti sugli Articoli in Fattura e Giacenze (AI Scan & Modifica Manuale)
+- **Riconoscimento Sconti tramite AI Vision**: Aggiornati i prompt e lo schema JSON di `api/scan-invoice.js` e `geminiVision.js` per estrarre la percentuale di sconto riga (`discount_percent` / `Sc. %`) dai documenti DDT e fatture dei distributori alimentari.
+- **Calcolo Dinamico dei Prezzi Netto & Totale**: Integrato il ricalcolo istantaneo dei prezzi: `Prezzo Netto Unitario = Prezzo Lordo × (1 - Sconto / 100)` e `Totale Voce Netto = Quantità × Prezzo Netto`. Modificando la quantità, il prezzo lordo, lo sconto o il totale riga nel form (`InvoiceScanForm.jsx`), tutti i valori correlati si allineano in automatico.
+- **Aggiornamento Giacenze al Prezzo Netto Effettivo**: Nel momento del carico in magazzino (`InventoryDashboard.jsx`), l'ultimo prezzo unitario (`last_unit_price`) memorizzato nell'ingrediente viene registrato al prezzo netto reale al netto degli sconti.
+- **Modifica Manuale Sconto nelle Giacenze**: Nella modale "Modifica Ingrediente" (`InventoryList.jsx`), l'utente può inserire o modificare il prezzo di listino e lo sconto percentuale applicato per ricalcolare il prezzo netto unitario dell'ingrediente.
+- **Badge Visivi Sconto & Storico Prezzi**: Visualizzazione chiara con badge dorati `🏷️ -X% Sconto` e indicazione del prezzo di listino lordo e netto nell'archivio fatture (`InvoiceArchive.jsx`), nella lista magazzino (`InventoryList.jsx`) e nello storico prezzi/fornitori (`PriceHistoryModal.jsx`).
 
 ---
 

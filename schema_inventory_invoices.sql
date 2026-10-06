@@ -24,9 +24,12 @@ CREATE TABLE IF NOT EXISTS public.inventory_items (
   current_stock NUMERIC(10, 2) DEFAULT 0.00,
   min_stock_alert NUMERIC(10, 2) DEFAULT 5.00,
   last_unit_price NUMERIC(10, 2) DEFAULT 0.00,
+  last_discount_percent NUMERIC(5, 2) DEFAULT 0.00,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS last_discount_percent NUMERIC(5, 2) DEFAULT 0.00;
 
 -- 3. Tabella Archivio Fatture Fornitori
 CREATE TABLE IF NOT EXISTS public.invoices (
@@ -56,8 +59,11 @@ CREATE TABLE IF NOT EXISTS public.invoice_items (
   pieces_per_package INT DEFAULT 1,
   total_price NUMERIC(10, 2) DEFAULT 0.00,
   unit_price NUMERIC(10, 2) DEFAULT 0.00,
+  discount_percent NUMERIC(5, 2) DEFAULT 0.00,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.invoice_items ADD COLUMN IF NOT EXISTS discount_percent NUMERIC(5, 2) DEFAULT 0.00;
 
 -- 5. Tabella Storico Movimenti Magazzino
 CREATE TABLE IF NOT EXISTS public.inventory_movements (

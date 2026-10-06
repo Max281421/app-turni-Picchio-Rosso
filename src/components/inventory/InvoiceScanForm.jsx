@@ -126,22 +126,30 @@ export default function InvoiceScanForm({
 
   const handleUpdateItem = (index, field, value) => {
     const updated = [...items];
-    updated[index] = { ...updated[index], [field]: value };
+    const item = { ...updated[index], [field]: value };
 
-    // Auto-ricalcolo prezzo unitario se cambia totale o quantità
-    if (field === 'quantity' || field === 'total_price') {
-      const qty = parseFloat(field === 'quantity' ? value : updated[index].quantity) || 0;
-      const tot = parseFloat(field === 'total_price' ? value : updated[index].total_price) || 0;
+    const qty = parseFloat(field === 'quantity' ? value : item.quantity) || 0;
+    const basePrice = parseFloat(field === 'unit_price' ? value : item.unit_price) || 0;
+    const discount = parseFloat(field === 'discount_percent' ? value : item.discount_percent) || 0;
+
+    // Auto-ricalcolo dinamico: Prezzo Lordo x Sconto % -> Prezzo Netto x Quantità -> Totale Voce Netto
+    if (field === 'quantity' || field === 'unit_price' || field === 'discount_percent') {
+      const netUnitPrice = discount > 0 ? basePrice * (1 - discount / 100) : basePrice;
+      item.total_price = Number((qty * netUnitPrice).toFixed(2));
+    } else if (field === 'total_price') {
+      const tot = parseFloat(value) || 0;
       if (qty > 0) {
-        updated[index].unit_price = Number((tot / qty).toFixed(2));
+        const netUnitPrice = tot / qty;
+        item.unit_price = discount > 0 ? Number((netUnitPrice / (1 - discount / 100)).toFixed(2)) : Number(netUnitPrice.toFixed(2));
       }
     }
 
     // Se cambia il nome del prodotto e non è abbinato, aggiorna anche il target name
-    if (field === 'item_name' && updated[index].target_item_id === 'new') {
-      updated[index].target_item_name = value;
+    if (field === 'item_name' && item.target_item_id === 'new') {
+      item.target_item_name = value;
     }
 
+    updated[index] = item;
     setItems(updated);
   };
 
@@ -173,8 +181,10 @@ export default function InvoiceScanForm({
         target_item_name: 'Nuovo Ingrediente',
         quantity: 1,
         unit_of_measure: 'kg',
-        total_price: 0,
+        pieces_per_package: 1,
         unit_price: 0,
+        discount_percent: 0,
+        total_price: 0,
       },
     ]);
   };
@@ -546,7 +556,7 @@ export default function InvoiceScanForm({
                             </div>
                           </div>
 
-                          {/* Seconda Riga: Dettagli Quantità, Unità, Pezzi per Cartone e Prezzi */}
+                          {/* Seconda Riga: Dettagli Quantità, Unità, Pezzi per Cartone, Prezzo Lordo, Sconto % e Totale Netto */}
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '10px', alignItems: 'center' }}>
                             <div>
                               <label style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Quantità</label>
@@ -592,52 +602,101 @@ export default function InvoiceScanForm({
                             )}
 
                             <div>
-                              <label style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Totale Voce (€)</label>
+                              <label style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Prezzo Lordo (€)</label>
+                              <input
+                                type="number"
+                                step="any"
+                                value={item.unit_price}
+                                onChange={(e) => handleUpdateItem(idx, 'unit_price', e.target.value)}
+                                className="input-field"
+                                style={{ width: '100%' }}
+                              />
+                            </div>
+
+                            <div>
+                              <label style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 600 }}>Sconto (%)</label>
+                              <input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="100"
+                                placeholder="0%"
+                                value={item.discount_percent || ''}
+                                onChange={(e) => handleUpdateItem(idx, 'discount_percent', e.target.value)}
+                                className="input-field"
+                                style={{
+                                  width: '100%',
+                                  borderColor: Number(item.discount_percent) > 0 ? 'rgba(245, 158, 11, 0.6)' : 'rgba(255, 255, 255, 0.12)',
+                                  color: '#fbbf24',
+                                  fontWeight: 700,
+                                }}
+                              />
+                            </div>
+
+                            <div>
+                              <label style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: 600 }}>Totale Netto (€)</label>
                               <input
                                 type="number"
                                 step="any"
                                 value={item.total_price}
                                 onChange={(e) => handleUpdateItem(idx, 'total_price', e.target.value)}
                                 className="input-field"
-                                style={{ width: '100%' }}
+                                style={{ width: '100%', fontWeight: 800, color: '#34d399' }}
                               />
-                            </div>
-
-                            <div style={{ textAlign: 'right' }}>
-                              <span style={{ fontSize: '0.72rem', color: '#38bdf8', display: 'block' }}>
-                                Prezzo al Cartone
-                              </span>
-                              <span style={{ fontSize: '1rem', fontWeight: 800, color: '#38bdf8' }}>
-                                € {Number(item.unit_price || 0).toFixed(2)}
-                              </span>
                             </div>
                           </div>
 
-                          {/* Badge Calcolo Bottiglie / Pezzi Totali se Unità è Cartoni */}
-                          {['cartoni', 'ct', 'cf', 'casse', 'confezioni'].includes((item.unit_of_measure || '').toLowerCase()) && (
-                            <div
-                              style={{
-                                fontSize: '0.78rem',
-                                color: '#34d399',
-                                background: 'rgba(16, 185, 129, 0.1)',
-                                border: '1px solid rgba(16, 185, 129, 0.25)',
-                                padding: '6px 12px',
-                                borderRadius: '8px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                flexWrap: 'wrap',
-                                gap: '6px',
-                              }}
-                            >
-                              <span>
-                                🍾 Conteggio Bottiglie/Pezzi: <strong>{(Number(item.quantity || 0) * Number(item.pieces_per_package || 24)).toFixed(0)} pz totali</strong> ({item.quantity} cartoni × {item.pieces_per_package || 24} pz)
-                              </span>
-                              <span>
-                                Costo singolo pezzo: <strong>€ {((Number(item.unit_price) || 0) / (Number(item.pieces_per_package) || 24)).toFixed(2)} / pz</strong>
-                              </span>
-                            </div>
-                          )}
+                          {/* Badge Calcolo Sconto, Prezzo Netto e Conteggio Bottiglie Totali */}
+                          {(() => {
+                            const disc = Number(item.discount_percent) || 0;
+                            const baseUPrice = Number(item.unit_price) || 0;
+                            const netUPrice = disc > 0 ? baseUPrice * (1 - disc / 100) : baseUPrice;
+                            const isCarton = ['cartoni', 'ct', 'cf', 'casse', 'confezioni'].includes((item.unit_of_measure || '').toLowerCase());
+                            const pzPkg = Number(item.pieces_per_package) || 24;
+                            const bottleCost = isCarton && pzPkg > 0 ? netUPrice / pzPkg : 0;
+
+                            return (
+                              <div
+                                style={{
+                                  fontSize: '0.78rem',
+                                  color: '#cbd5e1',
+                                  background: 'rgba(255, 255, 255, 0.04)',
+                                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                                  padding: '6px 12px',
+                                  borderRadius: '8px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  flexWrap: 'wrap',
+                                  gap: '6px',
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                  {disc > 0 ? (
+                                    <span style={{ color: '#fbbf24', fontWeight: 700, background: 'rgba(245, 158, 11, 0.15)', padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                                      🏷️ Sconto {disc}% → Prezzo Netto: € {netUPrice.toFixed(2)} /{item.unit_of_measure}
+                                    </span>
+                                  ) : (
+                                    <span>
+                                      Prezzo netto unitario: <strong>€ {netUPrice.toFixed(2)} /{item.unit_of_measure}</strong>
+                                    </span>
+                                  )}
+
+                                  {isCarton && (
+                                    <span style={{ color: '#34d399' }}>
+                                      • 🍾 {(Number(item.quantity || 0) * pzPkg).toFixed(0)} bottiglie totali
+                                    </span>
+                                  )}
+                                </div>
+
+                                {isCarton && (
+                                  <span style={{ color: '#38bdf8', fontWeight: 600 }}>
+                                    Costo singolo pezzo: <strong>€ {bottleCost.toFixed(2)} / pz</strong>
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       );
                     })
