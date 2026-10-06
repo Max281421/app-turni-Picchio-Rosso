@@ -96,6 +96,18 @@ ALTER TABLE public.planned_shifts ADD COLUMN IF NOT EXISTS mansione VARCHAR(20) 
 CREATE INDEX IF NOT EXISTS idx_planned_shifts_employee_date ON public.planned_shifts(employee_id, data);
 CREATE INDEX IF NOT EXISTS idx_planned_shifts_data ON public.planned_shifts(data);
 
+-- 5. TABELLA PUSH_SUBSCRIPTIONS (Notifiche Push VAPID per dispositivo)
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id UUID REFERENCES public.employees(id) ON DELETE CASCADE,
+    auth_user_id UUID,
+    endpoint TEXT UNIQUE NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- FUNZIONE DI CONTROLLO ADMIN
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN AS $$

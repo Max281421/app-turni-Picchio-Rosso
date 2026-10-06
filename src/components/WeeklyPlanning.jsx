@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getSupabaseClient } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { sharePlanningToWhatsApp, parseMansioni } from '../lib/whatsappExport';
+import { triggerPushForSectorPublish } from '../lib/pushNotifications';
 import { Calendar, Sun, Moon, Send, CheckCircle2, ChevronLeft, ChevronRight, UserCheck } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -531,7 +532,17 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         });
       } catch (e) {}
 
-      setMessage({ type: 'success', text: `🎉 Planning ${sectorObj.icon} ${sectorObj.label} pubblicato con successo!` });
+      let pushMsg = '';
+      try {
+        const pushRes = await triggerPushForSectorPublish(targetSector, sectorObj.label, weekStartStr, weekEndStr);
+        if (pushRes && pushRes.success && pushRes.count > 0) {
+          pushMsg = ` (🔔 Inviata notifica push a ${pushRes.count} dispositivi del settore)`;
+        }
+      } catch (pErr) {
+        console.warn('Errore invio push:', pErr);
+      }
+
+      setMessage({ type: 'success', text: `🎉 Planning ${sectorObj.icon} ${sectorObj.label} pubblicato con successo!${pushMsg}` });
       if (refreshMasterShifts) refreshMasterShifts();
       fetchWeekData();
     } catch (err) {

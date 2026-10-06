@@ -199,6 +199,12 @@ Per aggiornare l'applicazione online dopo una modifica al codice:
 - **Modifica & Gestione Allegati in Archivio**: Nella modale "Modifica Dati Fattura" dell'archivio, è possibile aggiungere, sostituire o rimuovere la foto o la scansione del documento allegato.
 - **Compressione Client-Side Canvas**: I file immagine scattati o caricati vengono ridimensionati e compressi lato client (max 1600px, JPEG 0.78, ~150-250KB) tramite la funzione helper `compressImageFile` in `geminiVision.js`, mantenendo il salvataggio nativo in `file_url` senza saturare la memoria del browser o del database.
 
+### 🔔 29. Sistema Notifiche Push Web PWA per Settori Operativi (`pushNotifications.js` & `send-push.js`)
+- **Notifiche VAPID Native a Schermo Bloccato**: Implementato il protocollo standard Web Push (VAPID Keypair) con gestione Service Worker (`public/sw.js`). I dipendenti ricevono una notifica push pop-up con suono e vibrazione sullo schermo dello smartphone anche a schermo bloccato o app chiusa.
+- **Filtraggio Rigido per Settore Operativo**: Quando l'Admin clicca su *"Pubblica Planning [Settore]"* (es. Cassa, Fattorino o Pizzeria in `WeeklyPlanning.jsx`), il backend `/api/send-push.js` seleziona ed invia la notifica **esclusivamente ai dipendenti che appartengono a quel determinato settore** (`mansioni`).
+- **Attivazione Guidata in Profilo (`PushNotificationManager.jsx`)**: Nel menu "Gestione Profilo", ogni utente può attivare o disattivare le notifiche per il proprio dispositivo con 1-click. Su iPhone (iOS 16.4+), l'app guida l'utente al salvataggio in schermata Home PWA.
+- **Integrazione con WhatsApp**: Il pulsante manuale di condivisione su WhatsApp rimane 100% attivo e disponibile.
+
 ---
 
 ## 🔗 Documenti del Progetto App Turni

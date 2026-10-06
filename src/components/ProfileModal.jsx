@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { parseMansioni } from '../lib/whatsappExport';
 import { Shield, User, X, Trash2, ArrowRightLeft, Check, AlertTriangle, UserCheck } from 'lucide-react';
+import PushNotificationManager from './PushNotificationManager';
 
 export default function ProfileModal({ isOpen, onClose, targetEmployee = null, onUpdated = null }) {
   const { user, employee, updateEmployeeRole, updateEmployeeName, updateEmployeeAlias, updateEmployeeMansioni, deleteAccount } = useAuth();
@@ -293,6 +294,13 @@ export default function ProfileModal({ isOpen, onClose, targetEmployee = null, o
             {mansioniSaved ? 'Mansioni Salvate!' : 'Salva Ruoli Operativi'}
           </button>
         </div>
+
+        {/* Notifiche Push (Attivazione/Gestione per il proprio dispositivo) */}
+        {isSelf && (
+          <div style={{ marginBottom: '20px' }}>
+            <PushNotificationManager />
+          </div>
+        )}
 
         {/* Current Role Card */}
         <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '20px' }}>
