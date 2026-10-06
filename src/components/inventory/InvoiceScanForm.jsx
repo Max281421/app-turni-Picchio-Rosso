@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { analyzeInvoiceImage } from '../../lib/geminiVision';
+import { analyzeInvoiceImage, compressImageFile } from '../../lib/geminiVision';
 import { Camera, Upload, Sparkles, Check, Plus, Trash2, ArrowLeft, RefreshCw, Calculator, Link as LinkIcon } from 'lucide-react';
 
 /**
@@ -79,10 +79,15 @@ export default function InvoiceScanForm({
     if (!file) return;
 
     setSelectedFile(file);
-    if (file.type.startsWith('image/')) {
-      setFilePreviewUrl(URL.createObjectURL(file));
-    } else {
-      setFilePreviewUrl(null);
+
+    // Compressione ottimizzata dell'immagine per la memorizzazione e la visualizzazione permanente
+    try {
+      const dataUrl = await compressImageFile(file);
+      setFilePreviewUrl(dataUrl);
+    } catch (err) {
+      if (file.type.startsWith('image/')) {
+        setFilePreviewUrl(URL.createObjectURL(file));
+      }
     }
 
     // Avvia la scansione automatica
@@ -220,6 +225,7 @@ export default function InvoiceScanForm({
       total_amount: Number(finalTotal.toFixed(2)),
       notes,
       items,
+      file_url: filePreviewUrl || null,
       file: selectedFile,
     };
 

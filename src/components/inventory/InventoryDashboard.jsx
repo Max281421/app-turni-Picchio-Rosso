@@ -69,6 +69,7 @@ export default function InventoryDashboard() {
               due_date: inv.due_date,
               total_amount: inv.total_amount,
               payment_status: inv.payment_status,
+              file_url: inv.file_url || null,
             }]).select().single();
 
             if (invIns?.id && inv.items?.length > 0) {
@@ -129,6 +130,7 @@ export default function InventoryDashboard() {
           due_date: inv.due_date,
           total_amount: inv.total_amount,
           payment_status: inv.payment_status,
+          file_url: inv.file_url || null,
           notes: inv.notes,
           items: (inv.items || []).map((it) => ({
             item_name: it.item_name_raw,
@@ -228,6 +230,7 @@ export default function InventoryDashboard() {
           due_date: updatedInvoice.due_date,
           total_amount: updatedInvoice.total_amount,
           payment_status: updatedInvoice.payment_status,
+          file_url: updatedInvoice.file_url || null,
           notes: updatedInvoice.notes,
         }).eq('id', updatedInvoice.id);
       }
@@ -307,6 +310,7 @@ export default function InventoryDashboard() {
       due_date: invoicePayload.due_date,
       total_amount: invoicePayload.total_amount,
       payment_status: invoicePayload.payment_status,
+      file_url: invoicePayload.file_url || null,
       items: invoicePayload.items,
     };
 
@@ -394,6 +398,7 @@ export default function InventoryDashboard() {
           due_date: invoicePayload.due_date,
           total_amount: invoicePayload.total_amount,
           payment_status: invoicePayload.payment_status,
+          file_url: invoicePayload.file_url || null,
         }]).select().single();
 
         if (invIns?.id && invoicePayload.items?.length > 0) {

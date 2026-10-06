@@ -78,6 +78,7 @@ In questo documento sono tracciate le prossime funzionalità concordate, le pers
 | **Persistenza LocalStorage & Sincronizzazione Cloud Supabase** | Magazzino / Cloud | ✅ Completato | Sincronizzazione automatica due vie PC/Smartphone e fix permessi RLS (error 42501) |
 | **Fix Critico Auth e Isolamento Profilo Admin** | Sicurezza | ✅ Completato | Risolto bug cancellazione admin durante rimozione dipendenti con helper `checkIsSelf` |
 | **Gestione Sconti Articoli Fattura & Giacenze (AI Scan & Edit)** | Magazzino / AI | ✅ Completato | Riconoscimento AI sconti riga %, form editabile, ricalcolo prezzo netto unitario, badge visivi e storico prezzi |
+| **Anteprima Foto Lightbox & Download Allegati Fatture** | Magazzino / UX | ✅ Completato | Visualizzazione in-app foto/PDF fattura archiviati, download 1-click e compressione Canvas client-side (~150-250KB JPEG) |
 | **Ferie / Indisponibilità Pizzeria** | Pizzeria | 🟡 Programmato | Da definire con regole specifiche pizzeria |
 | **Sistema di Notifiche** | Feature | ⚪ In Valutazione | Fattibile (In-App / Push / Email) |
 

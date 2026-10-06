@@ -12,6 +12,62 @@ export function fileToBase64(file) {
 }
 
 /**
+ * Ridimensiona e comprime un file immagine in formato Data URL ottimizzato (JPEG 1600px max, ~150-250KB).
+ * Se il file è un PDF o un documento non immagine, restituisce il Data URL originale.
+ * @param {File} file - Il file caricato dall'utente
+ * @param {number} maxWidth - Larghezza massima in pixel (default 1600)
+ * @param {number} maxHeight - Altezza massima in pixel (default 1600)
+ * @param {number} quality - Qualità di compressione JPEG (default 0.78)
+ * @returns {Promise<string>} Stringa Data URL pronta per la memorizzazione/visualizzazione
+ */
+export function compressImageFile(file, maxWidth = 1600, maxHeight = 1600, quality = 0.78) {
+  return new Promise((resolve) => {
+    if (!file) return resolve(null);
+
+    if (!file.type || !file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result || null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width / height > maxWidth / maxHeight) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => resolve(e.target?.result || null);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
  * Service principale per la scansione ed estrazione automatica dei dati da immagini di fatture e DDT.
  * Utilizza la API Route Serverless (/api/scan-invoice) con OpenRouter / AI Vision.
  * @param {File} file - Il file foto o PDF caricato dall'utente

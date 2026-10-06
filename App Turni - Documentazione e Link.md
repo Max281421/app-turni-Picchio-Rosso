@@ -193,6 +193,12 @@ Per aggiornare l'applicazione online dopo una modifica al codice:
 - **Modifica Manuale Sconto nelle Giacenze**: Nella modale "Modifica Ingrediente" (`InventoryList.jsx`), l'utente può inserire o modificare il prezzo di listino e lo sconto percentuale applicato per ricalcolare il prezzo netto unitario dell'ingrediente.
 - **Badge Visivi Sconto & Storico Prezzi**: Visualizzazione chiara con badge dorati `🏷️ -X% Sconto` e indicazione del prezzo di listino lordo e netto nell'archivio fatture (`InvoiceArchive.jsx`), nella lista magazzino (`InventoryList.jsx`) e nello storico prezzi/fornitori (`PriceHistoryModal.jsx`).
 
+### 🖼️ 28. Anteprima Foto Lightbox & Download Allegati Fatture (`InvoiceArchive.jsx`)
+- **Visualizzazione Foto in-App**: Aggiunto il pulsante `👁️ Foto / Allegato` su ciascuna fattura archiviata. Cliccandoci si apre una modale **Lightbox high-definition** per visualizzare direttamente la foto dell'immagine o l'anteprima del documento PDF in-app.
+- **Download 1-Click sul Device**: Inserito il pulsante `💾 Scarica File` sia da PC che da mobile per scaricare la foto/documento della fattura con il nome formattato `Fattura_Fornitore_Numero.jpg`.
+- **Modifica & Gestione Allegati in Archivio**: Nella modale "Modifica Dati Fattura" dell'archivio, è possibile aggiungere, sostituire o rimuovere la foto o la scansione del documento allegato.
+- **Compressione Client-Side Canvas**: I file immagine scattati o caricati vengono ridimensionati e compressi lato client (max 1600px, JPEG 0.78, ~150-250KB) tramite la funzione helper `compressImageFile` in `geminiVision.js`, mantenendo il salvataggio nativo in `file_url` senza saturare la memoria del browser o del database.
+
 ---
 
 ## 🔗 Documenti del Progetto App Turni

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Search, ChevronDown, ChevronUp, Edit3, Trash2, X, Check } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, Edit3, Trash2, X, Check, Eye, Download, FileText, Image as ImageIcon, Upload, Paperclip } from 'lucide-react';
+import { compressImageFile } from '../../lib/geminiVision';
 
 export default function InvoiceArchive({
   invoices,
@@ -12,6 +13,9 @@ export default function InvoiceArchive({
   const [expandedInvoiceIds, setExpandedInvoiceIds] = useState([]);
   const [editingInvoice, setEditingInvoice] = useState(null);
 
+  // State Anteprima Foto/Documento (Lightbox Modal)
+  const [previewModal, setPreviewModal] = useState({ open: false, fileUrl: null, supplier: '', number: '', date: '' });
+
   // State Modifica Fattura
   const [editSupplier, setEditSupplier] = useState('');
   const [editNumber, setEditNumber] = useState('');
@@ -20,6 +24,8 @@ export default function InvoiceArchive({
   const [editStatus, setEditStatus] = useState('da_pagare');
   const [editTotal, setEditTotal] = useState('0');
   const [editNotes, setEditNotes] = useState('');
+  const [editFileUrl, setEditFileUrl] = useState(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
 
   const toggleExpand = (invoiceId) => {
     setExpandedInvoiceIds((prev) =>
@@ -67,6 +73,7 @@ export default function InvoiceArchive({
     setEditStatus(inv.payment_status || 'da_pagare');
     setEditTotal(inv.total_amount?.toString() || '0');
     setEditNotes(inv.notes || '');
+    setEditFileUrl(inv.file_url || null);
   };
 
   const handleSaveEdit = (e) => {
@@ -82,10 +89,27 @@ export default function InvoiceArchive({
       payment_status: editStatus,
       total_amount: parseFloat(editTotal) || 0,
       notes: editNotes,
+      file_url: editFileUrl || null,
     };
 
     onEditInvoice(updated);
     setEditingInvoice(null);
+  };
+
+  const handleEditFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingFile(true);
+    try {
+      const compressedDataUrl = await compressImageFile(file);
+      setEditFileUrl(compressedDataUrl);
+    } catch (err) {
+      console.error('Errore caricamento file:', err);
+      alert('Impossibile caricare il file selezionato');
+    } finally {
+      setIsUploadingFile(false);
+    }
   };
 
   const handleDelete = (inv) => {
@@ -207,8 +231,45 @@ export default function InvoiceArchive({
                       N° Fattura: <strong style={{ color: '#cbd5e1' }}>{inv.invoice_number}</strong> • Data: {inv.invoice_date}
                     </div>
 
-                    <div style={{ fontSize: '0.75rem', color: '#38bdf8', marginTop: '4px', fontWeight: 600 }}>
-                      {isExpanded ? '▲ Tocca per nascondere ingredienti' : `▼ Tocca per vedere i ${itemCount} ingredienti`}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 600 }}>
+                        {isExpanded ? '▲ Nascondi ingredienti' : `▼ Vedere i ${itemCount} ingredienti`}
+                      </div>
+
+                      {inv.file_url ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewModal({
+                              open: true,
+                              fileUrl: inv.file_url,
+                              supplier: inv.supplier_name,
+                              number: inv.invoice_number,
+                              date: inv.invoice_date,
+                            });
+                          }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '3px 9px',
+                            borderRadius: '8px',
+                            background: 'rgba(56, 189, 248, 0.15)',
+                            border: '1px solid rgba(56, 189, 248, 0.35)',
+                            color: '#38bdf8',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                          title="Visualizza o scarica la foto/documento della fattura"
+                        >
+                          <Eye size={13} /> Foto / Allegato
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: '0.72rem', color: '#64748b', fontStyle: 'italic' }}>
+                          (Nessuna foto allegata)
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -452,6 +513,61 @@ export default function InvoiceArchive({
                 </select>
               </div>
 
+              <div>
+                <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Paperclip size={14} color="#38bdf8" /> Allegato / Foto Scansione Fattura
+                </label>
+
+                {editFileUrl ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255, 255, 255, 0.05)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                    {editFileUrl.startsWith('data:image/') || !editFileUrl.includes('.pdf') ? (
+                      <img src={editFileUrl} alt="Anteprima" style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '6px' }} />
+                    ) : (
+                      <FileText size={32} color="#38bdf8" />
+                    )}
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        Foto/Documento allegato presente
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#34d399' }}>Pronto per la conservazione</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditFileUrl(null)}
+                      style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#f87171', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer' }}
+                    >
+                      Rimuovi
+                    </button>
+                  </div>
+                ) : (
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '2px dashed rgba(56, 189, 248, 0.4)',
+                    background: 'rgba(56, 189, 248, 0.05)',
+                    color: '#38bdf8',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}>
+                    <Upload size={16} />
+                    {isUploadingFile ? 'Elaborazione file...' : 'Carica o scatta foto della fattura'}
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      capture="environment"
+                      onChange={handleEditFileChange}
+                      style={{ display: 'none' }}
+                      disabled={isUploadingFile}
+                    />
+                  </label>
+                )}
+              </div>
+
               <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
                 <button
                   type="button"
@@ -478,11 +594,104 @@ export default function InvoiceArchive({
                     justifyContent: 'center',
                     gap: '6px',
                   }}
+                  disabled={isUploadingFile}
                 >
                   <Check size={16} /> Salva Fattura
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modale Lightbox Visualizzazione Foto/Documento Fattura */}
+      {previewModal.open && (
+        <div
+          className="modal-overlay"
+          style={{ zIndex: 1100, backgroundColor: 'rgba(0,0,0,0.88)' }}
+          onClick={() => setPreviewModal({ open: false, fileUrl: null, supplier: '', number: '', date: '' })}
+        >
+          <div
+            className="modal-content glass-card"
+            style={{
+              maxWidth: '800px',
+              width: '92%',
+              maxHeight: '90vh',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+              overflow: 'hidden',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ImageIcon size={20} color="#38bdf8" /> Fattura: {previewModal.supplier}
+                </h3>
+                <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                  N° {previewModal.number} • Data: {previewModal.date}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {previewModal.fileUrl && (
+                  <a
+                    href={previewModal.fileUrl}
+                    download={`Fattura_${previewModal.supplier}_${previewModal.number || 'doc'}.jpg`}
+                    className="btn-primary"
+                    style={{
+                      padding: '6px 14px',
+                      fontSize: '0.8rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    <Download size={15} /> Scarica File
+                  </a>
+                )}
+                <button
+                  onClick={() => setPreviewModal({ open: false, fileUrl: null, supplier: '', number: '', date: '' })}
+                  style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '32px',
+                    height: '32px',
+                    color: '#f8fafc',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '250px', background: 'rgba(0,0,0,0.4)', borderRadius: '12px', padding: '10px' }}>
+              {previewModal.fileUrl ? (
+                previewModal.fileUrl.startsWith('data:application/pdf') || previewModal.fileUrl.endsWith('.pdf') ? (
+                  <iframe
+                    src={previewModal.fileUrl}
+                    title="PDF Fattura"
+                    style={{ width: '100%', height: '65vh', border: 'none', borderRadius: '8px' }}
+                  />
+                ) : (
+                  <img
+                    src={previewModal.fileUrl}
+                    alt={`Foto Fattura ${previewModal.supplier}`}
+                    style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+                  />
+                )
+              ) : (
+                <span style={{ color: '#94a3b8' }}>Nessuna immagine disponibile</span>
+              )}
+            </div>
           </div>
         </div>
       )}
