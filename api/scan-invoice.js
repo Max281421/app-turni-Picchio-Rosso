@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     }
 
     const promptText = `
-Analizza questa foto di un documento di trasporto (DDT) / scontrino termico / fattura del fornitore (es. F.lli Ciccarelli, Stefani Group, MARR, DAC, Metro).
+Analizza questa foto di un documento di trasporto (DDT) / scontrino termico / fattura del fornitore (es. F.lli Ciccarelli, MR.FOOD, AGRI 1, Stefani Group, MARR, DAC, Metro).
 Estrai i dati esatti in formato JSON strutturato con questo schema:
 
 {
@@ -57,34 +57,42 @@ Estrai i dati esatti in formato JSON strutturato con questo schema:
   ]
 }
 
-Regole di estrazione universali per TUTTI i formati:
+Regole di estrazione universali per TUTTI i documenti italiani:
 
-1. SCONTRINI TERMICISTI / VERTICALI (es. F.lli Ciccarelli, ricevute strette a cassa):
+1. DATA DOCUMENTO (FORMATO ITALIANO GG/MM/AAAA):
+   - Nei documenti italiani la data è SEMPRE in formato GG/MM/AAAA (Giorno/Mese/Anno).
+   - Esempio: '07/10/2026' o '07-10-2026' indica il 7 OTTOBRE 2026 ('2026-10-07'), NON il 10 Luglio!
+   - Esempio: '08/10/2026' indica l'8 OTTOBRE 2026 ('2026-10-08').
+
+2. NUMERO FATTURA / DDT:
+   - Estrai l'intero codice alfanumerico esatto (es. '2400A/2026', '002235', '3.275'). Non saltare zeri centrali!
+
+3. SCONTRINI TERMICISTI / VERTICALI (es. F.lli Ciccarelli S.r.l.):
    - Gli articoli sono stampati su righe sovrapposte:
-     - Riga 1: Nome del prodotto (es. SEMOLA RIMACINATA DI GRANO DURO PIVETTI, CUBETTATO/JULIENNE 3 KG, SPIANATA PICCANTE 1/2 SV BOMBIERI, BRESAOLA PUNTA D' ANCA, PROVOLA 500G, PORCINI REALE).
-     - Riga 2: Prezzo unitario di listino e Unità di Misura indicati come 'euro/kg 1.20' oppure 'euro/pz 8.50'.
-       * Se è scritto 'euro/kg X.XX', 'unit_of_measure' DEVE ESSERE 'kg'!
-       * Se è scritto 'euro/pz X.XX', 'unit_of_measure' DEVE ESSERE 'pezzi'!
-     - Riga 3: Eventuale aliquota IVA (es. IVA 4.00% o IVA 10.00%).
+     - Riga 1: Nome del prodotto (es. SEMOLA RIMACINATA DI GRANO DURO PIVETTI, CUBETTATO/JULIENNE 3 KG, SPIANATA PICCANTE 1/2 SV BOMBIERI, BRESAOLA PUNTA D' ANCA, PROVOLA 500G AFF CF/PZ SING.LIQUIDO, PORCINI REALE 4/4 Ca' de la marca).
+     - Riga 2: 'euro/kg X.XX' oppure 'euro/pz X.XX'.
+       * Se è scritto 'euro/kg X.XX', 'unit_of_measure' DEVE ESSERE 'kg' e 'unit_price' è X.XX!
+       * Se è scritto 'euro/pz X.XX', 'unit_of_measure' DEVE ESSERE 'pezzi' e 'unit_price' è X.XX!
+     - Riga 3: Eventuale aliquota IVA.
      - Riga 4: 'x [QUANTITÀ] = [TOTALE RIGA]' (es. 'x 10.00 = 12.00', 'x 12.00 = 84.00', 'x 2.23 = 20.07', 'x 1.34 = 30.82', 'x 0.50 = 3.65', 'x 1.00 = 8.50').
-   - REGOLA QUANTITÀ vs PREZZO NEGLI SCONTRINI VERTICALI:
-     - Il valore subito dopo la 'x ' (es. 10.00, 12.00, 2.23, 1.34, 0.50, 1.00) è la QUANTITÀ consegnata ('quantity').
-     - Il valore dopo l'uguale '=' (es. 12.00, 84.00, 20.07, 30.82, 3.65, 8.50) è il TOTALE RIGA ('total_price').
-     - Il valore dopo 'euro/kg' o 'euro/pz' è il PREZZO UNITARIO ('unit_price').
-     - Se il nome del prodotto contiene indicazioni di confezione (es. 'CUBETTATO/JULIENNE 3 KG' o 'PROVOLA 500G'), mantieni quella descrizione nel NOME, ma imposta la quantità reale ('quantity') su quella espressa dopo la 'x ' (es. 12.00 o 0.50)!
+   - REGOLA QUANTITÀ: Il valore dopo la 'x ' (es. 10.00, 12.00, 2.23, 1.34, 0.50, 1.00) è la QUANTITÀ ('quantity'). Il valore dopo '=' è il TOTALE RIGA ('total_price'). Se il nome contiene '3 KG' o '500G', fa parte del nome commerciale, mentre la quantità reale acquistata è quella dopo la 'x '!
 
-2. TABELLE DISTRIBUTORI A4 (es. Stefani Group, DAC, MARR, Metro):
+4. GESTIONE SCONTI MULTIPLI O SINGOLI (es. MR.FOOD '25%+5%' o '25%'):
+   - Cerca sempre la colonna degli sconti (es. 'SCONTI %', 'Sc %', 'Sc.').
+   - Se leggi sconti multipli come '25%+5%', calcola la percentuale reale di sconto combinata: 100 - (100 * 0.75 * 0.95) = 28.75%.
+   - Se leggi '25%', imposta 'discount_percent' su 25.00.
+   - Leggi il totale netto reale della riga dalla colonna 'TOTALE' a destra (es. 56.41 per pelati MR.FOOD, 18.73 per polpa fine MR.FOOD).
+
+5. DOCUMENTI SU CARTA CHIMICA / MATRICE E PRODOTTI CONSUMABILI (es. AGRI 1):
+   - Leggi anche fornitura legna/pellet per forno pizza o materiali consumabili (es. 'agri 1', DDT '3.275', 'LEGNA IN BILI', quantità '1.000', totale '272.73' o '299.99' con IVA).
+   - 'unit_of_measure' per la legna: 'pezzi' o 'kg' o 'bancali'.
+
+6. TABELLE DISTRIBUTORI A4 (es. Stefani Group, DAC, MARR, Metro):
    - Le colonne sono: [Codice] [Descrizione] [qxc/Num um] [Quantità] [Um (CT/CF/KG/PZ)] [Prezzo] [Sconti] [Totale]
    - 'unit_of_measure': 'cartoni' per CT o CF, 'kg' per KG, 'pezzi' per PZ.
-   - 'pieces_per_package': Numero pz per cartone/qxc (es. 24, 12, 15, 6). Se è a peso (kg) o pezzi singoli, imposta 1.
 
-3. PRODOTTI SIMILI COME RIGHE SEPARATE:
-   - Non unire prodotti con nomi o varianti simili (es. "PERONI 1/3" e "PERONI 2/3").
-
-4. ESCLUSIONE CAUZIONI / IMBALLI:
-   - Escludi righe intitolate "CAUZIONI", "PALLETS EPAL", "BOMBOLE", "RESI IMBALLI" o "VUOTI A RENDERE".
-
-5. "total_amount": Importo totale finale del documento (es. 168.97 per Ciccarelli).
+7. ESCLUSIONE CAUZIONI:
+   - Escludi solo righe intitolate 'CAUZIONI', 'PALLETS EPAL', 'BOMBOLE', 'RESI IMBALLI'.
 
 Restituisci SOLO il JSON valido senza marcatori markdown o altro testo.
 `;
