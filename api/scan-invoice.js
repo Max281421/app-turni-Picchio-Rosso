@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     }
 
     const promptText = `
-Analizza questa foto di un documento di trasporto (DDT) / fattura del fornitore (es. Stefani Group Srl, MARR, DAC, Metro).
+Analizza questa foto di un documento di trasporto (DDT) / scontrino termico / fattura del fornitore (es. F.lli Ciccarelli, Stefani Group, MARR, DAC, Metro).
 Estrai i dati esatti in formato JSON strutturato con questo schema:
 
 {
@@ -46,10 +46,10 @@ Estrai i dati esatti in formato JSON strutturato con questo schema:
   "payment_status": "da_pagare",
   "items": [
     {
-      "item_name": "Nome prodotto pulito (senza x24, x12, x15 alla fine)",
+      "item_name": "Nome prodotto pulito",
       "quantity": 0.00,
-      "unit_of_measure": "cartoni", 
-      "pieces_per_package": 24,
+      "unit_of_measure": "kg", 
+      "pieces_per_package": 1,
       "unit_price": 0.00,
       "discount_percent": 0.00,
       "total_price": 0.00
@@ -57,30 +57,34 @@ Estrai i dati esatti in formato JSON strutturato con questo schema:
   ]
 }
 
-Regole fondamentali di estrazione per massima precisione:
+Regole di estrazione universali per TUTTI i formati:
 
-1. GUIDA COLONNE TABELLA DISTRIBUTORI (es. Stefani Group, DAC, MARR):
-   Nelle tabelle dei distributori alimentari e bevande in Italia, le colonne sono disposte nell'ordine:
-   [Codice] [Descrizione del bene] [Num. um (pezzi per cassa/qxc)] [Quantità (numero casse/cartoni)] [Um (CT/CF)] [Prezzo (prezzo al cartone)] [Sconti] [Totale (importo riga)]
+1. SCONTRINI TERMICISTI / VERTICALI (es. F.lli Ciccarelli, ricevute strette a cassa):
+   - Gli articoli sono stampati su righe sovrapposte:
+     - Riga 1: Nome del prodotto (es. SEMOLA RIMACINATA DI GRANO DURO PIVETTI, CUBETTATO/JULIENNE 3 KG, SPIANATA PICCANTE 1/2 SV BOMBIERI, BRESAOLA PUNTA D' ANCA, PROVOLA 500G, PORCINI REALE).
+     - Riga 2: Prezzo unitario di listino e Unità di Misura indicati come 'euro/kg 1.20' oppure 'euro/pz 8.50'.
+       * Se è scritto 'euro/kg X.XX', 'unit_of_measure' DEVE ESSERE 'kg'!
+       * Se è scritto 'euro/pz X.XX', 'unit_of_measure' DEVE ESSERE 'pezzi'!
+     - Riga 3: Eventuale aliquota IVA (es. IVA 4.00% o IVA 10.00%).
+     - Riga 4: 'x [QUANTITÀ] = [TOTALE RIGA]' (es. 'x 10.00 = 12.00', 'x 12.00 = 84.00', 'x 2.23 = 20.07', 'x 1.34 = 30.82', 'x 0.50 = 3.65', 'x 1.00 = 8.50').
+   - REGOLA QUANTITÀ vs PREZZO NEGLI SCONTRINI VERTICALI:
+     - Il valore subito dopo la 'x ' (es. 10.00, 12.00, 2.23, 1.34, 0.50, 1.00) è la QUANTITÀ consegnata ('quantity').
+     - Il valore dopo l'uguale '=' (es. 12.00, 84.00, 20.07, 30.82, 3.65, 8.50) è il TOTALE RIGA ('total_price').
+     - Il valore dopo 'euro/kg' o 'euro/pz' è il PREZZO UNITARIO ('unit_price').
+     - Se il nome del prodotto contiene indicazioni di confezione (es. 'CUBETTATO/JULIENNE 3 KG' o 'PROVOLA 500G'), mantieni quella descrizione nel NOME, ma imposta la quantità reale ('quantity') su quella espressa dopo la 'x ' (es. 12.00 o 0.50)!
 
-   REGOLE SULLE COLONNE:
-   - "pieces_per_package": DEVE ESSERE IL NUMERO DI PEZZI PER CARTONE/CASSA riportato nella colonna 'Num. um' o 'qxc' (es. 24, 12, 15, 6, 20). Se non specificato, imposta 1.
-   - "item_name": NOME PULITO DEL PRODOTTO. Rimuovi dal nome eventuali moltiplicatori di imballo alla fine come "X 24", "x24", "X 12", "x12", "x15", "x20" (es. "COCA COLA SLEEK LATT. 0.33 X 24" diventa "COCA COLA SLEEK LATT. 0.33", "S.BEN. 1/1 NAT TOWER ANNIA PET x12" diventa "S.BEN. 1/1 NAT TOWER ANNIA PET"). MANTIENI SEMPRE numeri di varianti come "1/3 VP", "2/3 VP", "0.33", "0.5"!
-   - "quantity": DEVE ESSERE IL NUMERO DI CARTONI/CASSE CONSEGNATI riportato nella colonna "Quantità" (es. 5 per Coca Cola Sleek, 2 per Coca Cola Zero, 1 per Lipton Tea, 1 per Moretti, 1 per Peroni 1/3, 2 per Peroni 2/3, 1 per Corona, 2 per S.Ben Nat, 2 per S.Ben Gas). NON prendere il valore della colonna 'Num. um' o 'qxc'!
-   - "unit_of_measure": "cartoni" (se la colonna Um indica CT o CF) o "pezzi" o "kg" o "litri".
-   - "unit_price": Prezzo unitario lordo/di listino al cartone dalla colonna "Prezzo" (es. 14.87 per 1 cartone di Coca Cola).
-   - "discount_percent": Percentuale di sconto applicata alla riga presente nella colonna "Sconti" o "Sc. %" o "Sc." (es. 10.0 per 10%, 15.0 per 15%, 5.0 per 5%). Se non c'è sconto o la colonna è vuota, imposta 0.00. Se ci sono più sconti tipo "10+5", calcola la percentuale reale combinata.
-   - "total_price": Prezzo totale netto della riga dalla colonna "Totale" a destra (importo effettivo da pagare al netto dello sconto).
-   - VERIFICA MATEMATICA: Assicurati che total_price sia uguale a quantity * unit_price * (1 - discount_percent / 100).
+2. TABELLE DISTRIBUTORI A4 (es. Stefani Group, DAC, MARR, Metro):
+   - Le colonne sono: [Codice] [Descrizione] [qxc/Num um] [Quantità] [Um (CT/CF/KG/PZ)] [Prezzo] [Sconti] [Totale]
+   - 'unit_of_measure': 'cartoni' per CT o CF, 'kg' per KG, 'pezzi' per PZ.
+   - 'pieces_per_package': Numero pz per cartone/qxc (es. 24, 12, 15, 6). Se è a peso (kg) o pezzi singoli, imposta 1.
 
-2. PRODOTTI SIMILI COME RIGHE SEPARATE (NESSUNA FUSIONE):
-   - Prodotti con nomi o varianti simili (es. "PERONI 1/3 VP BIRRA PERONI SRL" e "PERONI 2/3 VP BIRRA PERONI SRL") sono DUE PRODOTTI DIVERSI e DEVONO essere due elementi separati nell'array "items". NON UNIRLI O ELIMINARLI MAI!
+3. PRODOTTI SIMILI COME RIGHE SEPARATE:
+   - Non unire prodotti con nomi o varianti simili (es. "PERONI 1/3" e "PERONI 2/3").
 
-3. RIGOROSA ESCLUSIONE SEZIONI NON-PRODOTTO / IMBALLI:
-   - ESCLUDI completamente qualsiasi tabella o riga in basso intitolata "A DEBITO", "CAUZIONI", "PALLETS EPAL", "BOMBOLE", "RESI IMBALLI" o "VUOTI A RENDERE".
-   - Quelli non sono ingredienti o bevande ma cauzioni/depositi di imballo a rendere che NON vanno caricati in magazzino.
+4. ESCLUSIONE CAUZIONI / IMBALLI:
+   - Escludi righe intitolate "CAUZIONI", "PALLETS EPAL", "BOMBOLE", "RESI IMBALLI" o "VUOTI A RENDERE".
 
-4. "total_amount": Importo totale finale espresso in calce alla voce Totale documento (es. 273.87).
+5. "total_amount": Importo totale finale del documento (es. 168.97 per Ciccarelli).
 
 Restituisci SOLO il JSON valido senza marcatori markdown o altro testo.
 `;

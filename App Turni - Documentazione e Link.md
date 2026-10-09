@@ -205,6 +205,10 @@ Per aggiornare l'applicazione online dopo una modifica al codice:
 - **Attivazione Guidata in Profilo (`PushNotificationManager.jsx`)**: Nel menu "Gestione Profilo", ogni utente può attivare o disattivare le notifiche per il proprio dispositivo con 1-click. Su iPhone (iOS 16.4+), l'app guida l'utente al salvataggio in schermata Home PWA.
 - **Integrazione con WhatsApp**: Il pulsante manuale di condivisione su WhatsApp rimane 100% attivo e disponibile.
 
+### 🧾 30. Supporto Scontrini Termici Verticali & Fix Salva Ingredienti (`scan-invoice.js` & `InventoryDashboard.jsx`)
+- **Riconoscimento Formato Scontrino Termico / Ricevuta Stretta**: Aggiornato il prompt dell'AI Vision (`api/scan-invoice.js`) per supportare gli scontrini termici verticali (es. *F.lli Ciccarelli S.r.l.*) caratterizzati da diciture sovrapposte (`euro/kg 1.20` -> `unit_of_measure = "kg"`, `euro/pz 8.50` -> `unit_of_measure = "pezzi"`, `x 10.00 = 12.00` -> `quantity = 10.00`, `total_price = 12.00`), distinguendo i pesi del nome commerciale (es. `3 KG` o `500G`) dalla quantità reale acquistata.
+- **Resilienza Salvataggio Voci & Fallback Cloud/Locale**: Risolto il problema per cui le fatture salvate di recente mostravano `0 ingredienti`: in presenza di colonne non ancora migrate sul DB Supabase Cloud, il sistema esegue un fallback trasparente inserendo le voci di fattura senza far fallire la transazione e preserva i dati locali evitando sovrascritture a vuoto durante la sincronizzazione.
+
 ---
 
 ## 🔗 Documenti del Progetto App Turni

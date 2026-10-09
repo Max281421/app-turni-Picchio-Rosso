@@ -80,6 +80,7 @@ In questo documento sono tracciate le prossime funzionalità concordate, le pers
 | **Gestione Sconti Articoli Fattura & Giacenze (AI Scan & Edit)** | Magazzino / AI | ✅ Completato | Riconoscimento AI sconti riga %, form editabile, ricalcolo prezzo netto unitario, badge visivi e storico prezzi |
 | **Anteprima Foto Lightbox & Download Allegati Fatture** | Magazzino / UX | ✅ Completato | Visualizzazione in-app foto/PDF fattura archiviati, download 1-click e compressione Canvas client-side (~150-250KB JPEG) |
 | **Sistema Notifiche Push Web PWA per Settori Operativi** | Feature / Push | ✅ Completato | Notifiche VAPID separate per settore (Cassa, Fattorino, Pizzeria) inviate solo ai dipendenti di quel ruolo all'atto della conferma |
+| **Scansione Scontrini Termici Verticali & Fix 0 Ingredienti** | Magazzino / AI | ✅ Completato | Prompt universale per scontrini verticali (euro/kg, euro/pz, x QTY=TOTALE) e fallback salvataggio voci fattura |
 | **Ferie / Indisponibilità Pizzeria** | Pizzeria | 🟡 Programmato | Da definire con regole specifiche pizzeria |
 
 ---

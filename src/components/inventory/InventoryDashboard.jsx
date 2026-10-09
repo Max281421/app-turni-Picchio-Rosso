@@ -83,7 +83,11 @@ export default function InventoryDashboard() {
                 discount_percent: it.discount_percent || 0,
                 total_price: it.total_price,
               }));
-              await supabase.from('invoice_items').insert(itemRows);
+              const { error: insItemErr } = await supabase.from('invoice_items').insert(itemRows);
+              if (insItemErr && (insItemErr.code === 'PGRST204' || insItemErr.message?.includes('discount_percent'))) {
+                const fallbackRows = itemRows.map(({ discount_percent, ...rest }) => rest);
+                await supabase.from('invoice_items').insert(fallbackRows);
+              }
             }
           }
         }
@@ -122,26 +126,33 @@ export default function InventoryDashboard() {
 
       const { data: invData } = await supabase.from('invoices').select('*, items:invoice_items(*)').order('created_at', { ascending: false });
       if (invData && invData.length > 0) {
-        const formattedInvoices = invData.map((inv) => ({
-          id: inv.id,
-          supplier_name: inv.supplier_name_raw || 'Fornitore',
-          invoice_number: inv.invoice_number,
-          invoice_date: inv.invoice_date,
-          due_date: inv.due_date,
-          total_amount: inv.total_amount,
-          payment_status: inv.payment_status,
-          file_url: inv.file_url || null,
-          notes: inv.notes,
-          items: (inv.items || []).map((it) => ({
-            item_name: it.item_name_raw,
-            quantity: it.quantity,
-            unit_of_measure: it.unit_of_measure || 'cartoni',
-            pieces_per_package: it.pieces_per_package || 1,
-            unit_price: it.unit_price,
-            discount_percent: it.discount_percent || 0,
-            total_price: it.total_price,
-          })),
-        }));
+        const formattedInvoices = invData.map((inv) => {
+          const localMatch = localInvoices.find((l) => l.invoice_number === inv.invoice_number);
+          const resolvedItems = (inv.items && inv.items.length > 0)
+            ? inv.items.map((it) => ({
+                item_name: it.item_name_raw,
+                quantity: it.quantity,
+                unit_of_measure: it.unit_of_measure || 'cartoni',
+                pieces_per_package: it.pieces_per_package || 1,
+                unit_price: it.unit_price,
+                discount_percent: it.discount_percent || 0,
+                total_price: it.total_price,
+              }))
+            : (localMatch?.items || []);
+
+          return {
+            id: inv.id,
+            supplier_name: inv.supplier_name_raw || 'Fornitore',
+            invoice_number: inv.invoice_number,
+            invoice_date: inv.invoice_date,
+            due_date: inv.due_date,
+            total_amount: inv.total_amount,
+            payment_status: inv.payment_status,
+            file_url: inv.file_url || null,
+            notes: inv.notes,
+            items: resolvedItems,
+          };
+        });
         setInvoices(formattedInvoices);
         saveLocalStorage('APP_TURNI_INVOICES', formattedInvoices);
       }
@@ -412,7 +423,11 @@ export default function InventoryDashboard() {
             discount_percent: it.discount_percent || 0,
             total_price: it.total_price,
           }));
-          await supabase.from('invoice_items').insert(itemRows);
+          const { error: insertItemErr } = await supabase.from('invoice_items').insert(itemRows);
+          if (insertItemErr && (insertItemErr.code === 'PGRST204' || insertItemErr.message?.includes('discount_percent'))) {
+            const fallbackRows = itemRows.map(({ discount_percent, ...rest }) => rest);
+            await supabase.from('invoice_items').insert(fallbackRows);
+          }
         }
       }
     } catch (err) {
