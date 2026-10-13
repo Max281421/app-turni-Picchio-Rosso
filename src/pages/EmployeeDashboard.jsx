@@ -4,6 +4,7 @@ import { getSupabaseClient } from '../lib/supabase';
 import MonthPicker from '../components/MonthPicker';
 import ShiftModal from '../components/ShiftModal';
 import PwaInstallPrompt from '../components/PwaInstallPrompt';
+import PushNotificationManager from '../components/PushNotificationManager';
 import { exportPersonalShiftPDF } from '../lib/pdfExport';
 import { Sun, Moon, Calendar as CalendarIcon, Plus, CheckCircle2, Clock, Info, FileText } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -17,6 +18,9 @@ export default function EmployeeDashboard() {
 
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showPushBanner, setShowPushBanner] = useState(() => {
+    return localStorage.getItem('APP_TURNI_HIDE_PUSH_BANNER') !== 'true';
+  });
 
   // Modal State
   const [selectedDate, setSelectedDate] = useState(null);
@@ -212,6 +216,17 @@ export default function EmployeeDashboard() {
       
       {/* PWA Banner */}
       <PwaInstallPrompt />
+
+      {/* Push Notification Banner */}
+      {showPushBanner && (
+        <PushNotificationManager
+          banner={true}
+          onDismiss={() => {
+            setShowPushBanner(false);
+            localStorage.setItem('APP_TURNI_HIDE_PUSH_BANNER', 'true');
+          }}
+        />
+      )}
 
       {/* Month Picker & Personal Export Button */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>

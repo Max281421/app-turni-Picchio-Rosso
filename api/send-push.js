@@ -6,7 +6,7 @@ const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || 'Lf4J_22GxC746EhgL_OmJn
 
 try {
   webpush.setVapidDetails(
-    'mailto:admin@app-turni.local',
+    'https://app-turni-psi.vercel.app',
     vapidPublicKey,
     vapidPrivateKey
   );
@@ -33,24 +33,48 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { sectorId, sectorLabel, weekStartStr, weekEndStr, employeeIds } = req.body || {};
+    const { sectorId, sectorLabel, weekStartStr, weekEndStr, employeeIds, authUserIds, isTest, subscription } = req.body || {};
 
-    if (!sectorId || !employeeIds || !Array.isArray(employeeIds) || employeeIds.length === 0) {
+    // 1. MODALITÀ TEST: invia subito una notifica di prova al singolo dispositivo
+    if (isTest && subscription) {
+      const payload = JSON.stringify({
+        title: '🔔 Test Notifiche App Turni',
+        body: 'Le notifiche push funzionano! Riceverai gli avvisi sullo schermo quando l\'Admin confermerà i tuoi turni.',
+        url: '/',
+        tag: 'test-push-notification'
+      });
+      await webpush.sendNotification(subscription, payload);
+      return res.status(200).json({ success: true, message: 'Notifica di test inviata con successo!' });
+    }
+
+    // 2. MODALITÀ PUBBLICAZIONE PLANNING SETTORIALE
+    if (!sectorId) {
       return res.status(400).json({ error: 'Parametri mancanti per l\'invio delle notifiche push' });
+    }
+
+    const allIds = [...new Set([...(employeeIds || []), ...(authUserIds || [])])].filter(Boolean);
+    if (allIds.length === 0) {
+      return res.status(200).json({ success: true, count: 0, message: 'Nessun dipendente associato a questo settore.' });
     }
 
     const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://anipnkftlyemgpulycqo.supabase.co';
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_sOd-X1rlfMbyBwJ2tVdbUw_Q3tZf-oi';
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Recupera le sottoscrizioni push per i dipendenti di questo settore
+    // Recupera le sottoscrizioni push per i dipendenti di questo settore (cerca per employee_id o auth_user_id)
+    const orQuery = allIds.map(id => `employee_id.eq.${id},auth_user_id.eq.${id}`).join(',');
     const { data: subs, error } = await supabase
       .from('push_subscriptions')
       .select('*')
-      .in('employee_id', employeeIds);
+      .or(orQuery);
 
     if (error || !subs || subs.length === 0) {
-      return res.status(200).json({ success: true, count: 0, message: 'Nessun dispositivo iscritto per questo settore.' });
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        totalEmployees: allIds.length,
+        message: 'Nessun dispositivo registrato per questo settore.'
+      });
     }
 
     const label = sectorLabel || (sectorId === 'cassa' ? 'Cassa 💵' : sectorId === 'fattorino' ? 'Fattorino 🛵' : 'Pizzeria 🍕');
@@ -84,7 +108,7 @@ export default async function handler(req, res) {
     );
 
     const successCount = results.filter(r => r.status === 'fulfilled').length;
-    return res.status(200).json({ success: true, count: successCount, total: subs.length });
+    return res.status(200).json({ success: true, count: successCount, total: subs.length, totalEmployees: allIds.length });
   } catch (err) {
     console.error('Errore durante l\'invio delle notifiche push:', err);
     return res.status(500).json({ error: err.message || 'Errore interno server notifiche' });

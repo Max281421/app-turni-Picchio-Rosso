@@ -25,6 +25,17 @@ export function getNotificationPermission() {
   return Notification.permission;
 }
 
+export async function getCurrentSubscription() {
+  if (!isPushSupported()) return null;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) return null;
+    return await registration.pushManager.getSubscription();
+  } catch (e) {
+    return null;
+  }
+}
+
 /**
  * Sottoscrive l'utente corrente alle notifiche push del browser
  */
@@ -35,10 +46,10 @@ export async function subscribeUserToPush(employeeId, authUserId) {
 
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') {
-    throw new Error('Permesso notifiche rifiutato dall\'utente.');
+    throw new Error('Permesso notifiche non concesso. Abilita le notifiche nelle impostazioni del browser.');
   }
 
-  // Assicurati che il Service Worker sia registrato
+  // Assicurati che il Service Worker sia registrato e pronto
   let registration = await navigator.serviceWorker.getRegistration();
   if (!registration) {
     registration = await navigator.serviceWorker.register('/sw.js');
@@ -65,10 +76,34 @@ export async function subscribeUserToPush(employeeId, authUserId) {
   // Salva o aggiorna su Supabase (push_subscriptions)
   const supabase = getSupabaseClient();
   if (supabase) {
+    let resolvedEmployeeId = null;
+    let resolvedAuthUserId = authUserId || null;
+
+    // Risolvi il corretto ID di employees per evitare violazioni di chiave esterna (foreign key 23503)
+    try {
+      const idsToCheck = [employeeId, authUserId].filter(Boolean);
+      if (idsToCheck.length > 0) {
+        const orFilter = idsToCheck.map(id => `id.eq.${id},auth_user_id.eq.${id}`).join(',');
+        const { data: matchedEmp } = await supabase
+          .from('employees')
+          .select('id, auth_user_id')
+          .or(orFilter)
+          .limit(1)
+          .maybeSingle();
+
+        if (matchedEmp) {
+          resolvedEmployeeId = matchedEmp.id;
+          resolvedAuthUserId = matchedEmp.auth_user_id || resolvedAuthUserId;
+        }
+      }
+    } catch (resErr) {
+      console.warn('Errore risoluzione dipendente durante salvataggio push:', resErr);
+    }
+
     const { error } = await supabase.from('push_subscriptions').upsert(
       {
-        employee_id: employeeId || null,
-        auth_user_id: authUserId || null,
+        employee_id: resolvedEmployeeId,
+        auth_user_id: resolvedAuthUserId,
         endpoint,
         p256dh,
         auth,
@@ -78,7 +113,8 @@ export async function subscribeUserToPush(employeeId, authUserId) {
     );
 
     if (error) {
-      console.warn('Errore salvataggio sottoscrizione push su Supabase:', error);
+      console.error('Errore salvataggio sottoscrizione push su Supabase:', error);
+      throw new Error(`Errore registrazione sul database: ${error.message}`);
     }
   }
 
@@ -107,18 +143,131 @@ export async function unsubscribeUserFromPush(employeeId) {
 }
 
 /**
+ * Invia una notifica di test istantanea al dispositivo corrente
+ */
+export async function sendTestPushNotification() {
+  if (!isPushSupported()) {
+    throw new Error('Notifiche push non supportate su questo dispositivo.');
+  }
+
+  const subscription = await getCurrentSubscription();
+  if (!subscription) {
+    throw new Error('Nessuna sottoscrizione attiva su questo dispositivo. Attiva prima le notifiche con il pulsante verde.');
+  }
+
+  const response = await fetch('/api/send-push', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      isTest: true,
+      subscription: subscription.toJSON(),
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.success) {
+    throw new Error(data.error || 'Impossibile inviare la notifica di test dal server.');
+  }
+
+  return data;
+}
+
+/**
+ * Recupera le statistiche dei dipendenti e dispositivi iscritti per un determinato settore
+ */
+export async function getSectorSubscriberInfo(sectorId) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !sectorId) {
+    return { totalEmployees: 0, subscribedDevices: 0, subscribedEmployees: 0, employeeNames: [] };
+  }
+
+  try {
+    const { data: dbEmployees, error: empErr } = await supabase
+      .from('employees')
+      .select('id, nome, auth_user_id, mansioni');
+
+    if (empErr || !dbEmployees) {
+      return { totalEmployees: 0, subscribedDevices: 0, subscribedEmployees: 0, employeeNames: [] };
+    }
+
+    const sectorLower = sectorId.toLowerCase().trim();
+    const sectorEmployees = dbEmployees.filter(e => {
+      let mList = [];
+      if (Array.isArray(e.mansioni)) {
+        mList = e.mansioni.map(m => m.toLowerCase().trim());
+      } else if (typeof e.mansioni === 'string') {
+        mList = e.mansioni.toLowerCase().split(',').map(m => m.trim());
+      }
+      return mList.includes(sectorLower);
+    });
+
+    if (sectorEmployees.length === 0) {
+      return { totalEmployees: 0, subscribedDevices: 0, subscribedEmployees: 0, employeeNames: [] };
+    }
+
+    const empIds = sectorEmployees.map(e => e.id).filter(Boolean);
+    const authIds = sectorEmployees.map(e => e.auth_user_id).filter(Boolean);
+    const allIds = [...new Set([...empIds, ...authIds])];
+
+    if (allIds.length === 0) {
+      return { totalEmployees: sectorEmployees.length, subscribedDevices: 0, subscribedEmployees: 0, employeeNames: sectorEmployees.map(e => e.nome) };
+    }
+
+    const orQuery = allIds.map(id => `employee_id.eq.${id},auth_user_id.eq.${id}`).join(',');
+    const { data: subs, error: subErr } = await supabase
+      .from('push_subscriptions')
+      .select('id, employee_id, auth_user_id')
+      .or(orQuery);
+
+    if (subErr || !subs) {
+      return { totalEmployees: sectorEmployees.length, subscribedDevices: 0, subscribedEmployees: 0, employeeNames: sectorEmployees.map(e => e.nome) };
+    }
+
+    const subscribedEmpIdSet = new Set();
+    subs.forEach(s => {
+      sectorEmployees.forEach(e => {
+        if (s.employee_id === e.id || s.auth_user_id === e.auth_user_id || s.auth_user_id === e.id) {
+          subscribedEmpIdSet.add(e.id);
+        }
+      });
+    });
+
+    return {
+      totalEmployees: sectorEmployees.length,
+      subscribedDevices: subs.length,
+      subscribedEmployees: subscribedEmpIdSet.size,
+      employeeNames: sectorEmployees.map(e => e.nome),
+    };
+  } catch (err) {
+    console.warn('Errore getSectorSubscriberInfo:', err);
+    return { totalEmployees: 0, subscribedDevices: 0, subscribedEmployees: 0, employeeNames: [] };
+  }
+}
+
+/**
  * Invia una notifica push per il settore confermato dall'Admin
  */
 export async function triggerPushForSectorPublish(sectorId, sectorLabel, weekStartStr, weekEndStr) {
   const supabase = getSupabaseClient();
-  if (!supabase) return { success: false, count: 0 };
+  if (!supabase) return { success: false, count: 0, error: 'Database non connesso' };
 
   try {
     // 1. Recupera tutti i dipendenti che hanno il settore specificato nelle loro mansioni
-    const { data: dbEmployees } = await supabase.from('employees').select('id, auth_user_id, mansioni');
-    if (!dbEmployees || dbEmployees.length === 0) return { success: true, count: 0 };
+    const { data: dbEmployees, error: dbErr } = await supabase
+      .from('employees')
+      .select('id, auth_user_id, mansioni');
 
+    if (dbErr) throw dbErr;
+    if (!dbEmployees || dbEmployees.length === 0) {
+      return { success: true, count: 0, total: 0, totalEmployees: 0, message: 'Nessun dipendente censito.' };
+    }
+
+    const sectorLower = sectorId.toLowerCase().trim();
     const targetEmployeeIds = [];
+    const targetAuthUserIds = [];
+
     dbEmployees.forEach(e => {
       let mList = [];
       if (Array.isArray(e.mansioni)) {
@@ -127,13 +276,14 @@ export async function triggerPushForSectorPublish(sectorId, sectorLabel, weekSta
         mList = e.mansioni.toLowerCase().split(',').map(m => m.trim());
       }
 
-      if (mList.includes(sectorId.toLowerCase().trim())) {
+      if (mList.includes(sectorLower)) {
         if (e.id) targetEmployeeIds.push(e.id);
+        if (e.auth_user_id) targetAuthUserIds.push(e.auth_user_id);
       }
     });
 
-    if (targetEmployeeIds.length === 0) {
-      return { success: true, count: 0, message: 'Nessun dipendente appartiene a questo settore.' };
+    if (targetEmployeeIds.length === 0 && targetAuthUserIds.length === 0) {
+      return { success: true, count: 0, total: 0, totalEmployees: 0, message: 'Nessun dipendente appartiene a questo settore.' };
     }
 
     // 2. Invia la richiesta all'API endpoint /api/send-push
@@ -148,19 +298,18 @@ export async function triggerPushForSectorPublish(sectorId, sectorLabel, weekSta
         weekStartStr,
         weekEndStr,
         employeeIds: targetEmployeeIds,
+        authUserIds: targetAuthUserIds,
       }),
     });
 
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      console.warn('Risposta API send-push non OK:', errData);
-      return { success: false, error: errData.error || 'Errore invio notifiche push' };
+      return { success: false, count: 0, error: data.error || `Errore HTTP ${response.status}` };
     }
 
-    const data = await response.json();
     return data;
   } catch (err) {
     console.error('Errore invio notifiche push settore:', err);
-    return { success: false, error: err.message };
+    return { success: false, count: 0, error: err.message };
   }
 }

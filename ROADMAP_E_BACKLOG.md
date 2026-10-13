@@ -31,9 +31,9 @@ In questo documento sono tracciate le prossime funzionalità concordate, le pers
 
 ---
 
-### 📌 2. Sistema di Notifiche (In-App / Push / Email)
-- **Stato**: *In Valutazione Futura (Analisi di fattibilità completata)*
-- **Obiettivo**: Inviare avvisi in tempo reale per cambi turno o comunicazioni dell'amministratore.
+### 📌 2. Sistema di Notifiche Web Push PWA per Settori
+- **Stato**: *✅ Completato & Operativo*
+- **Descrizione**: Notifiche push native via Web Push API / VAPID con Service Worker. Attivazione 1-tap con banner in home page e disponibilità, tasto test notifica istantaneo nel profilo, filtraggio rigoroso per settore operativo alla pubblicazione del planning ed indicatore dei dispositivi registrati in tempo reale per l'Admin.
 
 ---
 

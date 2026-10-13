@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { getSupabaseClient } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { sharePlanningToWhatsApp, parseMansioni } from '../lib/whatsappExport';
-import { triggerPushForSectorPublish } from '../lib/pushNotifications';
-import { Calendar, Sun, Moon, Send, CheckCircle2, ChevronLeft, ChevronRight, UserCheck } from 'lucide-react';
+import { triggerPushForSectorPublish, getSectorSubscriberInfo } from '../lib/pushNotifications';
+import PushNotificationManager from './PushNotificationManager';
+import { Calendar, Sun, Moon, Send, CheckCircle2, ChevronLeft, ChevronRight, UserCheck, Smartphone } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 // Helper per ottenere il Lunedì della settimana a partire da una data qualsiasi
@@ -80,9 +81,31 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
   const weekStartStr = weekDays[0].dateStr;
   const weekEndStr = weekDays[6].dateStr;
 
+  // Statistiche sottoscrizioni push per il settore attivo
+  const [sectorSubInfo, setSectorSubInfo] = useState({ totalEmployees: 0, subscribedDevices: 0, subscribedEmployees: 0, employeeNames: [] });
+  const [showPushBanner, setShowPushBanner] = useState(() => {
+    return localStorage.getItem('APP_TURNI_HIDE_PUSH_BANNER') !== 'true';
+  });
+
+  const fetchSectorSubInfo = async (secId) => {
+    if (!secId) return;
+    try {
+      const info = await getSectorSubscriberInfo(secId);
+      setSectorSubInfo(info);
+    } catch (e) {
+      console.warn('Errore recupero statistiche notifiche settore:', e);
+    }
+  };
+
   useEffect(() => {
     fetchWeekData();
   }, [currentMonday, mode]);
+
+  useEffect(() => {
+    if (!isPersonalMode && isAdmin) {
+      fetchSectorSubInfo(activeSector);
+    }
+  }, [activeSector, isPersonalMode, isAdmin]);
 
   const isAvailable = (empOrId, dateStr, turno) => {
     if (!empOrId) return false;
@@ -535,14 +558,22 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
       let pushMsg = '';
       try {
         const pushRes = await triggerPushForSectorPublish(targetSector, sectorObj.label, weekStartStr, weekEndStr);
-        if (pushRes && pushRes.success && pushRes.count > 0) {
-          pushMsg = ` (🔔 Inviata notifica push a ${pushRes.count} dispositivi del settore)`;
+        if (pushRes && pushRes.success) {
+          if (pushRes.count > 0) {
+            pushMsg = ` (🔔 Notifica push inviata a ${pushRes.count} dispositivi)`;
+          } else {
+            pushMsg = ` (⚠️ Nessuna notifica push inviata: 0 dispositivi registrati per ${sectorObj.label})`;
+          }
+        } else if (pushRes && pushRes.error) {
+          pushMsg = ` (⚠️ Notifiche push non inviate: ${pushRes.error})`;
         }
       } catch (pErr) {
         console.warn('Errore invio push:', pErr);
+        pushMsg = ` (⚠️ Errore invio push: ${pErr.message})`;
       }
 
       setMessage({ type: 'success', text: `🎉 Planning ${sectorObj.icon} ${sectorObj.label} pubblicato con successo!${pushMsg}` });
+      fetchSectorSubInfo(targetSector);
       if (refreshMasterShifts) refreshMasterShifts();
       fetchWeekData();
     } catch (err) {
@@ -607,6 +638,17 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '32px' }}>
       
+      {/* Banner Notifiche Push (Modalità Personale Disponibilità) */}
+      {isPersonalMode && showPushBanner && (
+        <PushNotificationManager
+          banner={true}
+          onDismiss={() => {
+            setShowPushBanner(false);
+            localStorage.setItem('APP_TURNI_HIDE_PUSH_BANNER', 'true');
+          }}
+        />
+      )}
+
       {/* BOX 1: INSERIMENTO DISPONIBILITÀ (O PLANNING ADMIN COMPLETO PER SETTORE) */}
       <div className="glass-card" style={{ padding: '24px' }}>
         
@@ -733,9 +775,7 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
         {!isPersonalMode && isAdmin && (
           <div style={{
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
+            flexDirection: 'column',
             gap: '12px',
             padding: '14px 18px',
             marginBottom: '24px',
@@ -743,9 +783,32 @@ export default function WeeklyPlanning({ mode = 'planning', employeesList: propE
             borderRadius: '12px',
             border: '1px solid rgba(255, 255, 255, 0.08)'
           }}>
-            <span style={{ fontSize: '0.82rem', color: '#94a3b8', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-              ⚡ Assegna turni per <strong style={{ color: currentSectorObj.color }}>{currentSectorObj.icon} {currentSectorObj.label}</strong> e pubblica/esporta
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+              <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                ⚡ Assegna turni per <strong style={{ color: currentSectorObj.color }}>{currentSectorObj.icon} {currentSectorObj.label}</strong> e pubblica/esporta
+              </span>
+
+              {/* Indicatore Stato Notifiche Push per il Settore */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '0.78rem',
+                padding: '4px 10px',
+                borderRadius: '8px',
+                background: sectorSubInfo.subscribedDevices > 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                border: sectorSubInfo.subscribedDevices > 0 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(245, 158, 11, 0.3)',
+                color: sectorSubInfo.subscribedDevices > 0 ? '#34d399' : '#fbbf24',
+                fontWeight: 600
+              }}>
+                <Smartphone size={13} />
+                {sectorSubInfo.subscribedDevices > 0 ? (
+                  <span>📱 Push: {sectorSubInfo.subscribedDevices} disp. attivi ({sectorSubInfo.subscribedEmployees}/{sectorSubInfo.totalEmployees} dipendenti)</span>
+                ) : (
+                  <span>⚠️ Push: 0 dispositivi registrati per {currentSectorObj.label}</span>
+                )}
+              </div>
+            </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', width: '100%', justifyContent: 'flex-start' }}>
               <button
