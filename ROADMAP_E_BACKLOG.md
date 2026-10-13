@@ -10,7 +10,7 @@ related_notes:
   - "[[ISTRUZIONI_DIPENDENTI]]"
   - "[[SUPABASE_SETUP]]"
   - "[[prompt-antigravity-app-turni]]"
-last_updated: 2026-10-06
+last_updated: 2026-10-13
 ---
 
 # 🗺️ ROADMAP E BACKLOG PROGETTO - APP TURNI
