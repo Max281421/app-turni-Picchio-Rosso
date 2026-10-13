@@ -1,4 +1,4 @@
-const CACHE_NAME = 'turni-app-v1';
+const CACHE_NAME = 'turni-app-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -9,32 +9,37 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
+  // Salta l'attesa per attivare subito il nuovo service worker
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      return cache.addAll(ASSETS_TO_CACHE).catch((err) => {
+        console.warn('Cache addAll warning non bloccante:', err);
+      });
     })
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
-            return caches.delete(cache);
-          }
-        })
-      );
-    })
+    Promise.all([
+      self.clients.claim(),
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cache) => {
+            if (cache !== CACHE_NAME) {
+              return caches.delete(cache);
+            }
+          })
+        );
+      })
+    ])
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-  // Network first strategy for API / Supabase calls, cache fallback for static app shell
-  if (event.request.url.includes('supabase.co')) {
+  // Network first per chiamate Supabase / API esterne
+  if (event.request.url.includes('supabase.co') || event.request.url.includes('/api/')) {
     return;
   }
 
@@ -47,7 +52,7 @@ self.addEventListener('fetch', (event) => {
         const responseToCache = response.clone();
         caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, responseToCache);
-        });
+        }).catch(() => {});
         return response;
       })
       .catch(() => {
@@ -109,4 +114,3 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
-
