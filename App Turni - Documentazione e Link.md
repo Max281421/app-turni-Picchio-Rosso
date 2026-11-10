@@ -216,6 +216,12 @@ Per aggiornare l'applicazione online dopo una modifica al codice:
 - **Supporto Forniture Consumabili & Moduli Matrice (es. AGRI 1)**: Lettura di ditte su carta chimica/matrice con forniture di legna, pellet e consumabili per il forno pizza (`LEGNA IN BILI`, `1.000` bancale/unità, `272.73 €`).
 - **Resilienza Salvataggio Voci & Fallback Cloud/Locale**: Risolto il problema per cui le fatture salvate di recente mostravano `0 ingredienti`: in presenza di colonne non ancora migrate sul DB Supabase Cloud, il sistema esegue un fallback trasparente inserendo le voci di fattura senza far fallire la transazione e preserva i dati locali evitando sovrascritture a vuoto durante la sincronizzazione.
 
+### 🔒 31. Risoluzione Definitiva Auto-Resurrezione Account Eliminati & Sync `auth.users`
+- **Diagnosi del Bug di Auto-Creazione**: Quando l'Admin eliminava un dipendente dall'app, veniva rimossa la sola riga in `public.employees`, lasciando attive le credenziali in `auth.users` e il token di sessione memorizzato sul telefono dell'ex dipendente. All'avvio dell'app da parte dell'ex dipendente, la funzione `fetchEmployeeProfile` in `AuthContext.jsx` non trovava il dipendente ed eseguiva erroneamente un `INSERT` automatico in `employees`, resuscitando l'account.
+- **Logout Forzato Immediato (`AuthContext.jsx`)**: Rimosso qualsiasi fallback di auto-inserimento in `fetchEmployeeProfile`. Se un utente autenticato non ha una riga corrispondente in `public.employees`, l'app interpreta l'evento come "Account eliminato dall'Admin" ed esegue immediatamente il logout forzato (`supabase.auth.signOut()`), azzerando lo stato locale e bloccando per sempre l'accesso dal dispositivo.
+- **Blocco Re-iscrizione Silenziosa in `register()`**: Se un utente tenta di re-registrarsi con una mail già censita in `auth.users`, il sistema blocca la procedura restituendo errore invece di effettuare un accesso forzato con re-inserimento.
+- **Trigger Database `tr_employee_deleted` su Supabase**: Introdotto un trigger PostgreSQL `SECURITY DEFINER` che intercetta la cancellazione da `public.employees` ed elimina in modo atomico anche il relativo account da `auth.users` (`DELETE FROM auth.users WHERE id = OLD.auth_user_id`), disabilitando definitivamente le credenziali di accesso dal server.
+
 ---
 
 ## 🔗 Documenti del Progetto App Turni

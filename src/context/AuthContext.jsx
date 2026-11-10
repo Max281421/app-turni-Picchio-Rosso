@@ -93,37 +93,15 @@ export function AuthProvider({ children }) {
       if (data) {
         setEmployee(formatEmpWithMansioni(data));
       } else {
-        // Se la riga non esiste ancora in employees, crea il profilo con .insert()
-        const { data: userData } = await supabase.auth.getUser();
-        const userObj = userData?.user;
-        const email = userObj?.email || 'utente';
-        
-        const targetName = userObj?.user_metadata?.nome || email.split('@')[0];
-        const targetRole = userObj?.user_metadata?.ruolo || 'dipendente';
-
-        const { data: newEmp, error: createErr } = await supabase
-          .from('employees')
-          .insert([{ auth_user_id: authUserId, nome: targetName, ruolo: targetRole }])
-          .select()
-          .maybeSingle();
-
-        if (newEmp) {
-          setEmployee(formatEmpWithMansioni(newEmp));
-        } else {
-          // Se la insert ha dato errore perché la riga esisteva già, riprova con la select
-          const { data: retryEmp } = await supabase
-            .from('employees')
-            .select('*')
-            .eq('auth_user_id', authUserId)
-            .maybeSingle();
-
-          if (retryEmp) {
-            setEmployee(formatEmpWithMansioni(retryEmp));
-          } else {
-            console.warn('Fallback employee profile initialized:', createErr);
-            setEmployee(formatEmpWithMansioni({ id: authUserId, auth_user_id: authUserId, nome: targetName, ruolo: targetRole }));
-          }
-        }
+        // Se l'utente è autenticato in Supabase ma la sua riga non esiste più in employees,
+        // significa che l'account è stato eliminato dall'Admin: esegui il logout immediato,
+        // azzera la sessione locale e impedisci l'auto-creazione non autorizzata.
+        console.warn('Profilo dipendente non trovato in employees (account eliminato dall\'Admin). Disconnessione...');
+        try {
+          await supabase.auth.signOut();
+        } catch (e) {}
+        setUser(null);
+        setEmployee(null);
       }
     } catch (err) {
       console.error('Exception fetching employee:', err);
@@ -162,19 +140,9 @@ export function AuthProvider({ children }) {
     });
 
     if (signUpErr) {
-      if (signUpErr.message.includes('User already registered') || signUpErr.message.includes('already exists')) {
-        const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-        if (signInErr) throw signUpErr;
-        userObj = signInData.user;
-      } else {
-        throw signUpErr;
-      }
-    } else {
-      userObj = signUpData.user;
+      throw signUpErr;
     }
+    userObj = signUpData.user;
 
     if (userObj) {
       await supabase.auth.updateUser({
@@ -397,11 +365,21 @@ export function AuthProvider({ children }) {
     const isSelf = checkIsSelf(targetEmployeeId);
 
     try {
-      // 1. Elimina i turni del dipendente selezionato
+      // 1. Elimina i turni e le notifiche del dipendente selezionato
       await supabase
         .from('shifts')
         .delete()
         .eq('employee_id', targetEmployeeId);
+
+      await supabase
+        .from('planned_shifts')
+        .delete()
+        .eq('employee_id', targetEmployeeId);
+
+      await supabase
+        .from('push_subscriptions')
+        .delete()
+        .or(`employee_id.eq.${targetEmployeeId},auth_user_id.eq.${targetEmployeeId}`);
 
       // 2. Elimina la riga del dipendente selezionato dalla tabella employees
       let { error: empError } = await supabase

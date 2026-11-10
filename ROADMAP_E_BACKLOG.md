@@ -81,6 +81,7 @@ In questo documento sono tracciate le prossime funzionalità concordate, le pers
 | **Anteprima Foto Lightbox & Download Allegati Fatture** | Magazzino / UX | ✅ Completato | Visualizzazione in-app foto/PDF fattura archiviati, download 1-click e compressione Canvas client-side (~150-250KB JPEG) |
 | **Sistema Notifiche Push Web PWA per Settori Operativi** | Feature / Push | ✅ Completato | Notifiche VAPID separate per settore (Cassa, Fattorino, Pizzeria) inviate solo ai dipendenti di quel ruolo all'atto della conferma |
 | **Scansione Scontrini Termici Verticali & Fix 0 Ingredienti** | Magazzino / AI | ✅ Completato | Prompt universale per scontrini verticali (euro/kg, euro/pz, x QTY=TOTALE) e fallback salvataggio voci fattura |
+| **Fix Definitivo Auto-Resurrezione Dipendenti & Sync auth.users** | Sicurezza / Auth | ✅ Completato | Rimosso fallback auto-insert in fetchProfile, logout forzato e trigger eliminazione da auth.users |
 | **Ferie / Indisponibilità Pizzeria** | Pizzeria | 🟡 Programmato | Da definire con regole specifiche pizzeria |
 
 ---
