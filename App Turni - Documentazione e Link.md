@@ -78,7 +78,7 @@ Per aggiornare l'applicazione online dopo una modifica al codice:
 - **Sheet 2 (Griglia 1-31 Cartellino)**: Colonne *Nome Dipendente*, giorni 1-31 con iniziali del giorno della settimana e mese (es. `S 1/8, D 2/8`), Totali e bordatura nera sottile su ogni singola cella.
 
 ### 📄 6. Esportazioni PDF (Admin e Dipendente)
-- **PDF Riepilogo Admin (Verticale A4)**: Tabella bordata completa del riepilogo mensile dipendenti con riga finale di Totale Generale.
+- **PDF Riepilogo Admin (Verticale A4)**: Tabella bordata completa del riepilogo mensile dipendenti con colonne *Nome Dipendente*, *Date Esatte Lavorate*, *Turni Pranzo*, *Turni Cena* e la colonna **Totale Guadagnato (€)** calcolata con tariffa fissa (20€ a pranzo, 30€ a cena). Rimosse le colonne ridondanti "Totale Turni" e "Giorni Presenza". Riga finale di Totale Generale con somma complessiva dei compensi maturati.
 - **PDF Griglia 1-31 Admin (Orizzontale A4 Landscape)**: Griglia cartellino mensile 1-31 formattata in landscape A4 per la stampa.
 - **PDF Resoconto Personale Dipendente (Ibrido Landscape)**: Tabella riepilogativa, griglia cartellino 1-31 ed elenco dettagliato delle date lavorate nel mese generato con 1 click dal dipendente.
 
@@ -144,8 +144,8 @@ Per aggiornare l'applicazione online dopo una modifica al codice:
 - **Possibilità di Deselezionare Tutti i Settori (0 Settori)**: Sia in registrazione che nella gestione del profilo (`ProfileModal.jsx`), è consentito deselezionare tutti e tre i settori. Un account senza settori operativi non apparirà nei planning settoriali e mostrerà il messaggio: `⚠️ Nessun settore selezionato. L'account non apparirà nei planning settoriali.`
 
 ### 📑 18. Esclusione Account Specifici dai PDF per il Commercialista
-- **Filtraggio Automatico nei Report PDF**: Gli account **"Angelo Giuliano"**, **"Antonio Rocco"** e **"Saverio Nicoscia"** vengono esclusi automaticamente dai PDF di riepilogo per il commercialista (`exportSummaryToPDF` ed `exportGridToPDF` in `src/lib/pdfExport.js`) in quanto retribuiti separatamente.
-- **Totali Dinamici**: I totali delle presenze e dei turni calcolati in calce al PDF ricalcolano solo i dipendenti inclusi.
+- **Filtraggio Automatico nei Report PDF**: Gli account **"Angelo Giuliano"**, **"Antonio Rocco"**, **"Saverio Nicoscia"** e **"Veronica Caruso"** vengono esclusi automaticamente da entrambi i report PDF per il commercialista (`exportSummaryToPDF` ed `exportGridToPDF` in `src/lib/pdfExport.js`) in quanto retribuiti con modalità separate/differenti.
+- **Totali Dinamici**: I totali delle presenze, dei turni e dei compensi maturati calcolati in calce al PDF ricalcolano solo i dipendenti inclusi.
 
 ### ⚙️ 19. Pulsante Unificato "Modifica Account" nell'Admin Dashboard
 - **Sostituzione Pulsanti Sparsi**: I vecchi pulsanti sparsi (*Modifica Settori*, *Imposta come Dipendente*, *Modifica Nome*, *Elimina Dipendente*) sono stati sostituiti da un unico pulsante pulito **`⚙️ Modifica Account`**.

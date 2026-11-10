@@ -1,11 +1,12 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// Lista dei dipendenti da escludere dal PDF di riepilogo per il commercialista (pagati separatamente)
+// Lista dei dipendenti da escludere dai PDF per il commercialista (pagati separatamente o con altro metodo)
 const EXCLUDED_ACCOUNTANT_PDF_NAMES = [
   'angelo giuliano',
   'antonio rocco',
-  'saverio nicoscia'
+  'saverio nicoscia',
+  'veronica caruso'
 ];
 
 /**
@@ -41,21 +42,21 @@ export function exportSummaryToPDF(employees, shifts, monthLabel) {
 
   doc.setFontSize(8.5);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Generato il ${new Date().toLocaleDateString('it-IT')} - App Turni Ristorante`, 14, 21);
+  doc.text(`Generato il ${new Date().toLocaleDateString('it-IT')} - App Turni Ristorante (Pranzo 20€ | Cena 30€)`, 14, 21);
 
   const head = [[
     'Nome Dipendente',
     'Date Esatte Lavorate',
     'Turni Pranzo',
     'Turni Cena',
-    'Totale Turni',
-    'Giorni Presenza'
+    'Totale Guadagnato (€)'
   ]];
 
   const body = filteredEmployees.map((emp) => {
     const empShifts = shifts.filter((s) => s.employee_id === emp.id || s.employee_id === emp.auth_user_id);
     const pranzi = empShifts.filter((s) => s.turno === 'pranzo').length;
     const cene = empShifts.filter((s) => s.turno === 'cena').length;
+    const totaleGuadagnato = (pranzi * 20) + (cene * 30);
 
     const uniqueDates = Array.from(new Set(empShifts.map((s) => s.data))).sort();
     const datesFormattedList = uniqueDates.map((d) => {
@@ -68,23 +69,21 @@ export function exportSummaryToPDF(employees, shifts, monthLabel) {
       datesFormattedList || 'Nessuna',
       pranzi,
       cene,
-      pranzi + cene,
-      uniqueDates.length
+      `${totaleGuadagnato.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
     ];
   });
 
   // Calcola Totali Generali
   const totalPranzi = body.reduce((acc, r) => acc + Number(r[2]), 0);
   const totalCene = body.reduce((acc, r) => acc + Number(r[3]), 0);
-  const totalTurni = body.reduce((acc, r) => acc + Number(r[4]), 0);
+  const grandTotalGuadagnato = (totalPranzi * 20) + (totalCene * 30);
 
   body.push([
     'TOTALE GENERALE',
     '-',
     totalPranzi,
     totalCene,
-    totalTurni,
-    '-'
+    `${grandTotalGuadagnato.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
   ]);
 
   autoTable(doc, {
@@ -104,12 +103,11 @@ export function exportSummaryToPDF(employees, shifts, monthLabel) {
       textColor: [30, 41, 59]
     },
     columnStyles: {
-      0: { cellWidth: 40 },
+      0: { cellWidth: 42 },
       1: { cellWidth: 70 },
-      2: { halign: 'center', cellWidth: 18 },
-      3: { halign: 'center', cellWidth: 18 },
-      4: { halign: 'center', cellWidth: 18 },
-      5: { halign: 'center', cellWidth: 18 }
+      2: { halign: 'center', cellWidth: 22 },
+      3: { halign: 'center', cellWidth: 22 },
+      4: { halign: 'center', cellWidth: 26, fontStyle: 'bold' }
     },
     styles: {
       lineColor: [0, 0, 0],

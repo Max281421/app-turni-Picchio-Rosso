@@ -67,7 +67,8 @@ In questo documento sono tracciate le prossime funzionalità concordate, le pers
 | **Layout Mobile & Scroll Modali Fluidi** | UI / Mobile | ✅ Completato | Blocco scroll di sfondo, modali con scroll interno, header sticky e griglia 7 giorni scrollabile orizzontalmente |
 | **Barra Navigazione Fissa in Basso (Instagram-Style)** | UI / Mobile | ✅ Completato | Dock bar fissa ancorata sul fondo con 2/4 tab per ruolo ed adattamento iOS safe area |
 | **Selezione Settori in Signup & Supporto 0 Settori** | Core / Account | ✅ Completato | Scelta settori in registrazione, possibilità di 0 settori e messaggio di avviso |
-| **Esclusione Account Specifici dai PDF Commercialista** | Commercialista | ✅ Completato | Esclusi "Angelo Giuliano", "Antonio Rocco", "Saverio Nicoscia" dai PDF riepilogativi |
+| **Esclusione Account Specifici dai PDF Commercialista** | Commercialista | ✅ Completato | Esclusi "Angelo Giuliano", "Antonio Rocco", "Saverio Nicoscia", "Veronica Caruso" dai PDF riepilogativi |
+| **PDF Riepilogo con Totale Guadagnato (Pranzo 20€ / Cena 30€)** | Commercialista / PDF | ✅ Completato | Nuova colonna "Totale Guadagnato (€)", rimosse colonne ridondanti "Totale Turni" e "Giorni Presenza" |
 | **Pulsante Unificato "Modifica Account" (Admin)** | Admin / UX | ✅ Completato | Pulsante singolo `⚙️ Modifica Account` che apre `ProfileModal.jsx` per qualsiasi dipendente |
 | **Gestione Magazzino, Inventario & Scansione Fatture AI Vision** | Magazzino / AI | ✅ Completato | Giacenze ingredienti, avvisi scorte minime, lettura foto fatture con Gemini Vision, auto-carico e archivio scadenze |
 | **Modifica ed Eliminazione Dati Magazzino & Fatture** | Magazzino / UX | ✅ Completato | Tasti modifica/eliminazione su ingredienti e fatture, voci incolonnate in verticale a scomparsa |
